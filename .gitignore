@@ -1,0 +1,55 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Environment secrets ────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Testing ────────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+cassettes/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/*.log
+logs/*.log.*
+
+# ── Editors / OS ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Type checking ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.pytype/
+
+# ── Linter cache ───────────────────────────────────────────────────────────────
+.ruff_cache/
+
+# ── Claude Code local settings ─────────────────────────────────────────────────
+.claude/settings.local.json
