@@ -1,11 +1,8 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
 [deploy]
-# Install Lobster (@clawdbot/lobster, Node >= 20) then start the OpenClaw Gateway.
-# OpenClaw is deployed via the Railway one-click template — this file adds the
-# Lobster install step, Python SRF package installation, and Railway health-check
-# configuration on top of that.
-#
-# NOTE: If the Railway base image for OpenClaw does not include Python 3.11+,
-# replace this startCommand with a Dockerfile that installs Python before pip.
 startCommand = "openclaw start"
 healthcheckPath = "/health"
 healthcheckTimeout = 500
