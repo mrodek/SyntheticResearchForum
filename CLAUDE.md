@@ -314,23 +314,37 @@ The debate transcript is append-only. Once a turn is written to the transcript, 
 
 ## 9. Railway Deployment Rules
 
+- SRF deploys via the **OpenClaw Gateway Railway template** (one-click deploy). OpenClaw is Node.js and provides the HTTP server, MCP transport, and agent runtime. SRF Python code runs as Lobster step scripts invoked by the exec tool.
 - All config is environment variables. No secrets in code or committed `.env` files.
-- The system must survive Railway sleep/wake cycles. Workspace state is on the persistent volume. In-memory state is rebuilt from the workspace on wake.
-- Startup must complete the PromptLedger prompt registration handshake before serving any workflow requests.
-- Health check endpoint: `GET /health` — must respond within 500 ms.
+- The system must survive Railway sleep/wake cycles. Workspace state is on the persistent volume at `/data/workspace`. In-memory state is rebuilt from the workspace on wake.
+- `scripts/srf_init.py` runs PromptLedger prompt registration + workspace directory init on startup. It is invoked via OpenClaw's exec tool before the first agent turn.
+- Health check endpoint: `GET /health` — served by OpenClaw, must respond within 500 ms.
 
-Required environment variables:
+SRF Python script environment variables (set via Railway Variables):
 ```
-SRF_LLM_PROVIDER       # e.g. anthropic, openai — used for tracker=None fallback only
-SRF_LLM_MODEL          # e.g. claude-sonnet-4-6, gpt-4o
-SRF_LLM_API_KEY        # provider key for tracker=None fallback only
-PROMPTLEDGER_API_URL   # PromptLedger instance URL
-PROMPTLEDGER_API_KEY   # project-scoped key — issue via POST /v1/admin/projects
-SRF_WORKSPACE_ROOT     # defaults to /data/workspace
-SRF_LOG_LEVEL          # defaults to INFO
+SRF_LLM_PROVIDER           # e.g. anthropic, openai — tracker=None fallback only
+SRF_LLM_MODEL              # e.g. claude-sonnet-4-6, gpt-4o
+SRF_LLM_API_KEY            # provider key for tracker=None fallback only
+PROMPTLEDGER_API_URL        # PromptLedger instance URL (optional)
+PROMPTLEDGER_API_KEY        # project-scoped key — issue via POST /v1/admin/projects
+SRF_LOG_LEVEL              # defaults to INFO
+SRF_MAX_PREP_RETRIES       # retry attempts for failed agent preparation (default 3)
+SRF_MIN_AGENTS             # minimum viable Paper Agents for debate (default 2)
+SRF_MIN_PAPERS             # minimum successfully extracted papers (default 2)
+SRF_ARXIV_DELAY_SECONDS    # rate-limit delay between arXiv fetches (default 3)
+SRF_DEBATE_CONTEXT_TOKENS  # max chars of transcript context in agent prompts (default 60000)
 ```
 
-Note: when `PROMPTLEDGER_API_URL` and `PROMPTLEDGER_API_KEY` are set, all LLM calls route through PromptLedger via `tracker.execute()` and the provider key is held by PromptLedger, not SRF. `SRF_LLM_API_KEY` is only used in the `tracker=None` fallback path (local dev, unit tests).
+OpenClaw Gateway variables (set via Railway Variables or /setup wizard):
+```
+SETUP_PASSWORD             # required — secures /setup web wizard
+PORT=8080                  # required — must match Railway Public Networking port
+OPENCLAW_STATE_DIR=/data/.openclaw      # recommended
+OPENCLAW_WORKSPACE_DIR=/data/workspace  # recommended — SRF workspace root
+OPENCLAW_GATEWAY_TOKEN     # recommended — secures MCP + webhook endpoints
+```
+
+Note: `SRF_WORKSPACE_ROOT` is not used. The workspace root is `OPENCLAW_WORKSPACE_DIR` (defaults to `/data/workspace`). SRF Python scripts read it from `os.environ.get("OPENCLAW_WORKSPACE_DIR", "/data/workspace")`. When `PROMPTLEDGER_API_URL` and `PROMPTLEDGER_API_KEY` are set, all LLM calls route through PromptLedger via `tracker.execute()`. `SRF_LLM_API_KEY` is only used in the `tracker=None` fallback path.
 
 ---
 

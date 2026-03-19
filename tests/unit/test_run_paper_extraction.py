@@ -134,16 +134,16 @@ def test_srf_forum_yaml_has_correct_steps() -> None:
     yaml_path = Path("workflows/srf_forum.yaml")
     data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
 
-    step_names = [s["name"] for s in data["steps"]]
-    assert "workspace_setup" in step_names
-    assert "paper_extraction" in step_names
-    assert step_names.index("workspace_setup") < step_names.index("paper_extraction")
+    step_ids = [s["id"] for s in data["steps"]]
+    assert "workspace_setup" in step_ids
+    assert "paper_extraction" in step_ids
+    assert step_ids.index("workspace_setup") < step_ids.index("paper_extraction")
 
-    ws_step = next(s for s in data["steps"] if s["name"] == "workspace_setup")
-    pe_step = next(s for s in data["steps"] if s["name"] == "paper_extraction")
+    ws_step = next(s for s in data["steps"] if s["id"] == "workspace_setup")
+    pe_step = next(s for s in data["steps"] if s["id"] == "paper_extraction")
 
-    assert ws_step["run"] == "python scripts/run_workspace_setup.py"
-    assert pe_step["run"] == "python scripts/run_paper_extraction.py"
+    assert ws_step["command"] == "python scripts/run_workspace_setup.py"
+    assert pe_step["command"] == "python scripts/run_paper_extraction.py"
     assert pe_step["stdin"] == "$workspace_setup.json"
 
 
