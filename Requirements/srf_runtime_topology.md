@@ -6,7 +6,7 @@ This document is the authoritative reference for how SRF components are deployed
 
 ## 1. Railway Service Configuration
 
-SRF runs as a **single persistent Railway service** using the **OpenClaw Gateway Railway template** (one-click deploy). OpenClaw is a Node.js gateway that provides the HTTP server, MCP transport, agent runtime, and web control UI. Lobster is a separate CLI tool installed alongside OpenClaw on the gateway host.
+SRF runs as a **single persistent Railway service** using the **OpenClaw Gateway Railway template** (one-click deploy). OpenClaw is a Node.js gateway that provides the HTTP server, MCP transport, agent runtime, and web control UI. Lobster (`@clawdbot/lobster`, installed via `npm install -g @clawdbot/lobster`) is a separate CLI tool installed alongside OpenClaw on the gateway host.
 
 ```
 Railway Service: srf-gateway

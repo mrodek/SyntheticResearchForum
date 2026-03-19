@@ -93,7 +93,7 @@ then uses that output as the `$trigger.json` input to the workflow.
 
 The `lobster` CLI must be on PATH on the Railway container. This is done by adding a build step
 to the OpenClaw Railway service that installs the lobster npm package globally:
-`npm install -g lobster-cli` (confirm exact package name). Lobster is then enabled in OpenClaw
+`npm install -g @clawdbot/lobster`. Lobster is then enabled in OpenClaw
 config via `tools.alsoAllow: ["lobster"]`.
 
 ### No custom webhook endpoints
