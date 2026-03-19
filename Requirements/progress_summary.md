@@ -5,6 +5,7 @@
 | Epic | Title | Status | Depends On |
 |---|---|---|---|
 | 1 | Foundation | Complete | — |
+| 1.1 | Runtime Infrastructure — Gateway, Lobster, OpenClaw & Railway | Not Started | Epic 1 — epic defined |
 | 3 | Newsletter Parsing & Config Generation | Complete | Epic 1 |
 | 4 | Workspace Management & Paper Extraction | Complete | Epics 1, 3 |
 | 5 | Agent Preparation Phase | Not Started | Epics 1, 4 — epic defined |
@@ -23,7 +24,7 @@
 
 | Story | Title | Status | Notes |
 |---|---|---|---|
-| 5.x | TBD | Not Started | Depends on Epic 4 complete |
+| 5.x | TBD | Not Started | Depends on Epic 4 complete; Epic 1.1 needed before integration tests |
 
 ---
 
