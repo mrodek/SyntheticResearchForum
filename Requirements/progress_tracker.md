@@ -4,6 +4,41 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-18] - Epic 4 Complete: Workspace Management & Paper Extraction
+
+### Summary
+- Epic 4, Stories 4.1–4.4 — all GREEN; 102 unit tests pass, 3 skipped (Windows chmod)
+- **New (src):** `src/srf/workspace/{__init__,models,init}.py`; `src/srf/extraction/{__init__,models,fetcher,extractor}.py`
+- **New (scripts):** `scripts/run_workspace_setup.py`, `scripts/run_paper_extraction.py`
+- **New (workflows):** `workflows/srf_forum.yaml` — full 9-step skeleton; workspace_setup and paper_extraction fully wired, phases 6–15 stubbed
+- **New (tests):** `test_workspace_init.py`, `test_paper_fetcher.py`, `test_paper_extractor.py`, `test_run_workspace_setup.py`, `test_run_paper_extraction.py`; `tests/fixtures/papers/_builders.py`; integration stubs for fetcher and Lobster
+- **Modified:** `src/srf/config.py` (+`arxiv_delay_seconds`, `min_papers`); `pyproject.toml` (+`pdfplumber`, `fpdf2`, `pyyaml`); `tests/unit/test_config.py`
+- Commit: `9ae90e1`
+
+### Decisions
+- **`papers/` added to workspace subdirectories** — fetcher writes to `workspace_path/papers/`; cleaner to create it with the workspace than have the fetcher create it on demand
+- **`sleep_fn` injected into fetcher** — makes rate-limit delay and retry sleep deterministic in unit tests without real waits; `asyncio.sleep` is the production default
+- **Retry only on 429/5xx** — 404 means the paper doesn't exist; retrying is pointless; 429/500–504 are transient
+- **`pdfplumber` over `pypdf`** — handles column layouts and academic PDF formatting more reliably; image-only PDFs (no embedded text) flagged as `extraction_status="image_only"` rather than silent empty string
+- **Abstract heuristic** — finds "Abstract" or "Abstract:" header line, captures following paragraph until next short title-case line; simple but reliable for well-formatted PDFs
+- **Scripts route logs to stderr** — `configure_logging(stream=sys.stderr)` called at startup so structlog output doesn't pollute the JSON stdout that Lobster reads
+- **`UP035`/`UP017` ruff rules ignored** — `typing.Callable` and `timezone.utc` are idiomatic with class-level datetime imports; rules added to `[tool.ruff.lint] ignore`
+- **Workflow YAML is a skeleton** — all 9 steps from the topology are present; only workspace_setup and paper_extraction are fully wired; subsequent epics MODIFY this file to replace `echo placeholder` stubs
+
+### Issues & Resolution
+- structlog defaulted to stdout, corrupting Lobster JSON output — fixed by calling `configure_logging(stream=sys.stderr)` at the top of each script's `main()`
+- `datetime.UTC` alias is Python 3.11+ module-level access, not accessible as `datetime.datetime.UTC` with class import — reverted to `timezone.utc`
+
+### Lessons Learned
+- Scripts that write JSON to stdout must configure all logging to stderr before importing any library code that logs at module level
+
+### Next Steps
+- [ ] Epic 5: Agent Preparation Phase (depends on Epic 4 complete — ✓)
+- [ ] Wire `call_provider_directly()` in Epic 5 Story 5.1 (referenced stub from Epic 3)
+- [ ] Integration test for real arXiv fetch: `pytest tests/integration/test_paper_fetcher_integration.py -v` (requires `SRF_RUN_INTEGRATION=1`)
+
+---
+
 ## [2026-03-18] - Git Repository Initialized
 
 ### Summary
