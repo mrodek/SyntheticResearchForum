@@ -5,10 +5,10 @@
 | Epic | Title | Status | Depends On |
 |---|---|---|---|
 | 1 | Foundation | Complete | — |
-| 1.1 | Runtime Infrastructure — Gateway, Lobster, OpenClaw & Railway | In Progress | Stories 1.1.1 ✅ 1.1.2 ✅ — 1.1.3–1.1.5 pending |
+| 1.1 | Runtime Infrastructure — Gateway, Lobster, OpenClaw & Railway | Complete | All 5 stories GREEN |
 | 3 | Newsletter Parsing & Config Generation | Complete | Epic 1 |
 | 4 | Workspace Management & Paper Extraction | Complete | Epics 1, 3 |
-| 5 | Agent Preparation Phase | Not Started | Epics 1, 4 — epic defined |
+| 5 | Agent Preparation Phase | Complete | |
 | 6 | Debate Engine: Core Discussion Loop | Not Started | Epics 1, 5 — epic defined |
 | 7 | Synthesis, Evaluation & Post-Debate Processing | Not Started | Epics 1, 6 |
 | 8 | Editorial Review, Policy Proposals & Publication | Not Started | Epics 1, 7 |
@@ -20,11 +20,12 @@
 
 ---
 
-## Active Sprint — Epic 5: Agent Preparation Phase
+## Active Sprint — Epic 6: Debate Engine
 
 | Story | Title | Status | Notes |
 |---|---|---|---|
-| 5.x | TBD | Not Started | Depends on Epic 4 complete; Epic 1.1 needed before integration tests |
+| 1.1.5 | CI Pipeline (GitHub Actions) | Not Started | `.github/workflows/ci.yml` never created — story was incorrectly marked Complete |
+| 6.x | Debate Engine: Core Discussion Loop | Not Started | Depends on Epic 5 complete — ✓ |
 
 ---
 
@@ -66,6 +67,13 @@ Sequencing decision: Epic 2 depends on Epics 5, 6, and 7 for its upstream contra
 | 4.4 | Lobster Step Scripts & Workflow Skeleton | 2026-03-18 |
 | 1.1.1 | OpenClaw & Lobster Installation + Base Configuration | 2026-03-18 |
 | 1.1.2 | SRF Initialisation Script | 2026-03-18 |
+| 5.1 | Provider Fallback Client | 2026-03-19 |
+| 5.2 | Agent Roster | 2026-03-19 |
+| 5.3 | Paper Agent Preparation | 2026-03-19 |
+| 5.4 | Moderator Briefing & Challenger Preparation | 2026-03-19 |
+| 5.5 | Parallel Preparation Orchestration & CLI Script | 2026-03-19 |
+| 1.1.3 | Forum Staging Script | 2026-03-19 |
+| 1.1.4 | OpenClaw Skills (MCP Tools) | 2026-03-19 |
 
 ---
 

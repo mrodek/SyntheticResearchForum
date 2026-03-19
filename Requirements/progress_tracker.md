@@ -4,6 +4,94 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-19] - Railway Deployment Fixes & Dockerfile
+
+### Summary
+- Added `Dockerfile` — Node.js 20 base with Python 3.11 installed; builds OpenClaw, Lobster, and SRF Python package at image build time
+- Simplified `railway.toml` startCommand to `openclaw start` (installs now happen at build, not runtime)
+- Fixed 5 pre-deploy blockers identified during deploy readiness review:
+  1. `railway.toml` — added `pip install + npm install @clawdbot/openclaw` to startCommand (now moved to Dockerfile)
+  2. `scripts/validate_and_stage_forum.py` — trigger JSON now includes `config_path` so `run_workspace_setup.py` can read it
+  3. `config/openclaw.json` — skills loader now checks `./skills` (repo) before `/data/workspace/skills` (volume)
+  4. `config/exec-approvals.json` — added bare `python` and `python3` to exec allowlist
+  5. `CLAUDE.md` — added "Definition of Complete" hard rule to prevent stories being marked complete without verification
+- Added `Requirements/Railway/RAILWAY_SETUP_GUIDE.md` — step-by-step Railway configuration guide
+- Reopened Story 1.1.5 (CI Pipeline) — was incorrectly marked Complete; `.github/workflows/ci.yml` never existed
+
+### Decisions
+- **Dockerfile over railpack** — Railway's railpack auto-detector only installed Python (not Node.js); Dockerfile gives explicit control over both runtimes
+- **Install at build time not runtime** — moves `npm install` and `pip install` to Docker build layer so failures surface in build logs and startup is instant
+- **Node.js 20 base image** — OpenClaw requires Node >= 20; Python 3.11 added via apt on top
+
+### Issues & Resolution
+- Railway build used railpack, detected Python-only project, installed Python 3.13 via mise but not Node.js → `openclaw` never installed → healthcheck failed on every attempt
+- Fix: `Dockerfile` with `node:20-slim` base + `python3.11` apt install
+
+### Next Steps
+- [ ] Push Dockerfile + fixes → confirm Railway build succeeds and `/health` passes
+- [ ] Run `/setup` wizard at `https://<service>.up.railway.app/setup`
+- [ ] Run `python scripts/srf_init.py` via OpenClaw exec tool
+- [ ] Story 1.1.5 — implement `.github/workflows/ci.yml` (TDD)
+- [ ] Begin Epic 6: Debate Engine
+
+---
+
+## [2026-03-19] - Story 1.1.5 Reopened: CI Pipeline Never Implemented
+
+### Summary
+- Story 1.1.5 (CI Pipeline & Deployment Documentation) was incorrectly marked Complete on 2026-03-19
+- `.github/workflows/ci.yml` was never created — the story's primary deliverable is missing
+- Story moved back to `Not Started` in `progress_summary.md`
+- `CLAUDE.md` updated with a hard "Definition of Complete" rule to prevent recurrence
+
+### Issues & Resolution
+- Root cause: story marked Complete without verifying all `Files:` block entries exist in the repo
+- Fix: added explicit pre-completion checklist to `CLAUDE.md` §4 (Progress Tracking)
+
+### Next Steps
+- [ ] Story 1.1.5 — write `tests/unit/test_ci_workflow.py` (RED), then create `.github/workflows/ci.yml` (GREEN)
+- [ ] Enable "Wait for CI" in Railway once workflow is live
+
+---
+
+## [2026-03-19] - Epic 5 Complete: Agent Preparation Phase
+
+### Summary
+- Epic 5, Stories 5.1–5.5 — all GREEN; 165 unit tests pass, 4 skipped
+- **New (src):** `src/srf/llm/__init__.py`, `src/srf/llm/fallback.py`; `src/srf/agents/{__init__,models,roster,preparation,orchestrator}.py`; `src/srf/prompts/agents.py`
+- **Modified (src):** `src/srf/prompts/__init__.py` (+`ALL_PROMPTS` aggregating newsletter + agent prompts); `src/srf/config.py` (+`paper_token_budget`, `max_prep_retries`)
+- **New (scripts):** `scripts/run_preparation.py` — reads paper extraction JSON from stdin, runs parallel preparation via `asyncio.gather()`, emits preparation summary JSON to stdout
+- **Modified (scripts):** `scripts/srf_init.py` — added new config fields to inline `SRFConfig` construction
+- **Modified (workflows):** `workflows/srf_forum.yaml` — `agent_preparation` step wired to `python scripts/run_preparation.py`
+- **New (tests):** `tests/unit/test_llm_fallback.py` (6 tests), `test_agent_roster.py` (6), `test_paper_agent_preparation.py` (7), `test_moderator_challenger_preparation.py` (7), `test_preparation_orchestrator.py` (5), `test_run_preparation.py` (2)
+- **New (tests/integration):** `test_llm_fallback_integration.py`, `test_preparation_integration.py`
+- **Modified (pyproject.toml):** Added optional `anthropic` and `openai` dependency groups
+
+### Decisions
+- **`call_provider_directly()` is the tracker=None fallback only** — primary LLM path is always `tracker.execute()`; provider SDKs lazy-imported inside function body so module imports cleanly without SDKs installed
+- **`LLMError` wraps provider exceptions** — prevents provider-specific exceptions leaking into caller code; carries status code context for debugging
+- **`list[PaperContent]` directly in `build_roster()`** — no ExtractionResult wrapper; simpler contract confirmed before implementation
+- **`{memory_block}` slot in all preparation prompts** — always empty string in this epic; Epic 2 populates without template changes
+- **Paper text truncated at sentence boundary** — `_budget_paper_text()` finds the last `.`/`!`/`?` at or before `SRF_PAPER_TOKEN_BUDGET` chars; logs WARNING with arxiv_id and chars_dropped
+- **Moderator failure aborts; Challenger degrades gracefully** — Moderator is the routing control plane; Challenger is valuable but not structurally required
+- **Moderator and Challenger receive summaries/abstracts only** — not full paper text; keeps token usage proportional to role
+- **`asyncio.gather(return_exceptions=True)`** — all preparations fan out concurrently; exceptions collected and processed per-agent
+- **`paper_token_budget` and `max_prep_retries` added to SRFConfig** — from `SRF_PAPER_TOKEN_BUDGET` (default 80000) and `SRF_MAX_PREP_RETRIES` (default 3) env vars
+- **`ALL_PROMPTS` aggregated in `src/srf/prompts/__init__.py`** — single import point for `srf_init.py` prompt registration
+
+### Issues & Resolution
+- ruff auto-fix (SIM117) corrupted two tests by merging `with patch(...)` and `with pytest.raises(...)` blocks — fixed by combining into single `with (...)` using parenthesised form
+- B905 `zip()` without `strict=` — fixed by adding `strict=True` to `zip()` calls in orchestrator and test
+- `SRFConfig` field addition broke existing tests using inline construction — updated `test_llm_fallback.py`, `srf_init.py` to include `paper_token_budget` and `max_prep_retries`
+
+### Next Steps
+- [ ] Story 1.1.3 — `scripts/validate_and_stage_forum.py`
+- [ ] Story 1.1.4 — Three OpenClaw Skills (SKILL.md files)
+- [ ] Story 1.1.5 — `.github/workflows/ci.yml` + `.env.example` update
+- [ ] Epic 6: Debate Engine: Core Discussion Loop (depends on Epic 5 complete — ✓)
+
+---
+
 ## [2026-03-18] - Epic 1.1 Stories 1.1.1–1.1.2: Runtime Infrastructure GREEN
 
 ### Summary

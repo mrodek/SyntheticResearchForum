@@ -11,13 +11,12 @@ import json
 import sys
 from pathlib import Path
 
-from srf.extraction.fetcher import fetch_papers_for_forum
 from srf.extraction.extractor import extract_papers_for_forum
+from srf.extraction.fetcher import fetch_papers_for_forum
 
 
 async def _run(data: dict) -> dict:
     from srf.config import SRFConfig
-    from srf.extraction.models import ExtractionError
     from srf.newsletter.models import PrimarySignal
 
     config = SRFConfig.from_env()

@@ -16,7 +16,7 @@
   },
   "skills": {
     "load": {
-      "extraDirs": ["/data/workspace/skills"]
+      "extraDirs": ["./skills", "/data/workspace/skills"]
     }
   },
   "agents": {

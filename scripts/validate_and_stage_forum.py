@@ -98,11 +98,13 @@ def main() -> None:
         workspace=str(forum_workspace),
     )
 
-    # Emit trigger JSON to stdout for Lobster / OpenClaw
+    # Emit trigger JSON to stdout for Lobster / OpenClaw.
+    # config_path is included so run_workspace_setup.py can read the CandidateForumConfig.
     trigger = {
         "forum_id": forum_id,
         "workspace_path": str(forum_workspace),
         "trace_id": trace_id,
+        "config_path": str(config_path.resolve()),
     }
     print(json.dumps(trigger), flush=True)
 

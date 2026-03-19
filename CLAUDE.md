@@ -151,6 +151,19 @@ Track all in-flight work in `requirements/progress_summary.md`. This file is the
 
 Update `progress.md` when status changes. Do not let it go stale.
 
+### Definition of Complete — HARD RULE
+
+A story is **never** marked `Complete` unless ALL of the following are true:
+
+1. Every file listed in the story's `Files:` block exists in the repository.
+2. Every Gherkin scenario in the story's `Acceptance Criteria` has a corresponding passing `pytest` test.
+3. `pytest tests/unit -v` has been run in this conversation and the output confirms GREEN for that story's tests.
+4. No story file is a stub, placeholder, or `echo` command standing in for real implementation.
+
+**Before moving a story to `## Completed` in `progress_summary.md`**, explicitly verify each point above. If any file is missing or any test is absent, the story stays at `GREEN` or `Tests Written` — not `Complete`.
+
+This rule exists because stories have been incorrectly closed (e.g. Story 1.1.5 — `.github/workflows/ci.yml` was never created but the story was marked Complete on 2026-03-19).
+
 **CRITICAL:** After every commit, also update `requirements/progress_tracker.md` (newest
 entries first) to reflect the detailed changes. Also review `README.md` and update it to reflect the current state.
 

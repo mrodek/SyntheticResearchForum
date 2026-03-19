@@ -19,7 +19,7 @@ steps:
   # Single script runs all Paper Agent preparations concurrently via asyncio.gather().
   # Partial failure: retry SRF_MAX_PREP_RETRIES per agent; abort if < SRF_MIN_AGENTS succeed.
   - id: agent_preparation
-    command: echo placeholder
+    command: python scripts/run_preparation.py
     stdin: $paper_extraction.json
     # Output: { ...prev, agents: [{ agent_id, role, status, prep_artifact_path }] }
 

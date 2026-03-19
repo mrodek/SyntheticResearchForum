@@ -18,7 +18,6 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 # Minimal structlog bootstrap so output reaches stdout/stderr in subprocess
 # ---------------------------------------------------------------------------
-
 import structlog
 
 structlog.configure(
@@ -86,6 +85,8 @@ def main() -> None:
                 promptledger_api_key=pl_key,
                 arxiv_delay_seconds=float(os.environ.get("SRF_ARXIV_DELAY_SECONDS", "3")),
                 min_papers=int(os.environ.get("SRF_MIN_PAPERS", "2")),
+                paper_token_budget=int(os.environ.get("SRF_PAPER_TOKEN_BUDGET", "80000")),
+                max_prep_retries=int(os.environ.get("SRF_MAX_PREP_RETRIES", "3")),
             )
             tracker = build_tracker(config)
         except Exception as exc:

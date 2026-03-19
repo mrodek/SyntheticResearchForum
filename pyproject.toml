@@ -19,6 +19,12 @@ dependencies = [
 promptledger = [
     "promptledger-client>=0.1.0",
 ]
+anthropic = [
+    "anthropic>=0.25.0",
+]
+openai = [
+    "openai>=1.14.0",
+]
 dev = [
     "pytest>=8.1.0",
     "pytest-asyncio>=0.23.0",

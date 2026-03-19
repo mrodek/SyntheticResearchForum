@@ -27,6 +27,8 @@ class SRFConfig:
     promptledger_api_key: str | None
     arxiv_delay_seconds: float
     min_papers: int
+    paper_token_budget: int
+    max_prep_retries: int
 
     @classmethod
     def from_env(cls) -> SRFConfig:
@@ -58,6 +60,8 @@ class SRFConfig:
 
         arxiv_delay_seconds = float(os.environ.get("SRF_ARXIV_DELAY_SECONDS", "3"))
         min_papers = int(os.environ.get("SRF_MIN_PAPERS", "2"))
+        paper_token_budget = int(os.environ.get("SRF_PAPER_TOKEN_BUDGET", "80000"))
+        max_prep_retries = int(os.environ.get("SRF_MAX_PREP_RETRIES", "3"))
 
         return cls(
             llm_provider=provider,
@@ -70,6 +74,8 @@ class SRFConfig:
             promptledger_api_key=pl_key,
             arxiv_delay_seconds=arxiv_delay_seconds,
             min_papers=min_papers,
+            paper_token_budget=paper_token_budget,
+            max_prep_retries=max_prep_retries,
         )
 
 

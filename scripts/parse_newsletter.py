@@ -22,7 +22,6 @@ from srf.newsletter.config_generator import generate_candidate_config
 from srf.newsletter.parser import parse_newsletter
 from srf.newsletter.persistence import save_candidate_configs
 
-
 # ---------------------------------------------------------------------------
 # Core pipeline (importable for unit tests)
 # ---------------------------------------------------------------------------
