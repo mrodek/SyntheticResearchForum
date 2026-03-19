@@ -1,0 +1,63 @@
+name: srf_forum
+version: "1.0"
+
+steps:
+
+  # ── Phase 4: Workspace Generation ──────────────────────────────────────────
+  - name: workspace_setup
+    run: python scripts/run_workspace_setup.py
+    stdin: $trigger.json
+    # Output: { forum_id, workspace_path, paper_refs, framing_question, topic, trace_id }
+
+  # ── Phase 5: Paper Extraction ───────────────────────────────────────────────
+  - name: paper_extraction
+    run: python scripts/run_paper_extraction.py
+    stdin: $workspace_setup.json
+    # Output: { ...prev, papers: [{ arxiv_id, abstract, full_text, extraction_status }] }
+
+  # ── Phase 6: Agent Preparation ──────────────────────────────────────────────
+  # Single script runs all Paper Agent preparations concurrently via asyncio.gather().
+  # Partial failure: retry SRF_MAX_PREP_RETRIES per agent; abort if < SRF_MIN_AGENTS succeed.
+  - name: agent_preparation
+    run: echo placeholder
+    stdin: $paper_extraction.json
+    # Output: { ...prev, agents: [{ agent_id, role, status, prep_artifact_path }] }
+
+  # ── Phases 7–11: Debate ─────────────────────────────────────────────────────
+  # The entire debate loop runs as a single Lobster step inside OpenClaw.
+  - name: debate
+    run: echo placeholder
+    stdin: $agent_preparation.json
+    # Output: { ...prev, transcript_path, turn_count, debate_status }
+
+  # ── Phase 12: Synthesis ─────────────────────────────────────────────────────
+  - name: synthesis
+    run: echo placeholder
+    stdin: $debate.json
+    # Output: { ...prev, synthesis_path }
+
+  # ── Phase 13: Contribution Evaluation ──────────────────────────────────────
+  - name: evaluation
+    run: echo placeholder
+    stdin: $synthesis.json
+    # Output: { ...prev, evaluation_path, evaluation_block }
+
+  # ── Human Gate: Editorial Review ────────────────────────────────────────────
+  # Lobster halts here. Gateway stores resume token in state.json.
+  # Resumed by MCP tool: approve_editorial_review → POST /webhook/resume
+  - name: editorial_review_gate
+    approval:
+      message: "Synthesis and evaluation complete. Review artifacts and approve for publication."
+      data: $evaluation.json
+
+  # ── Phase 14: Policy Proposals ──────────────────────────────────────────────
+  - name: policy_proposals
+    run: echo placeholder
+    stdin: $editorial_review_gate.json
+    # Output: { ...prev, policy_proposal_path }
+
+  # ── Phase 15: Publication ────────────────────────────────────────────────────
+  - name: publication
+    run: echo placeholder
+    stdin: $policy_proposals.json
+    # Output: { ...prev, published_artifact_paths, forum_status: "complete" }

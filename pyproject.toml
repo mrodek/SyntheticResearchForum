@@ -11,7 +11,8 @@ dependencies = [
     "structlog>=24.1.0",
     "httpx>=0.27.0",
     "anyio>=4.3.0",
-    "mcp>=1.0.0",
+    "mcp>=1.0.0; python_version >= '3.10'",
+    "pdfplumber>=0.11.0",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,8 @@ dev = [
     "pytest-recording>=0.13.0",
     "ruff>=0.4.0",
     "anyio[trio]>=4.3.0",
+    "fpdf2>=2.7.0",
+    "pyyaml>=6.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -49,7 +52,9 @@ select = [
     "SIM", # flake8-simplify
 ]
 ignore = [
-    "E501",  # line too long — ruff format handles this
+    "E501",   # line too long — ruff format handles this
+    "UP017",  # datetime.UTC alias requires module-level import; project uses class-level import
+    "UP035",  # collections.abc Callable — typing.Callable still fine in 3.11 codebase
 ]
 
 [tool.ruff.lint.isort]

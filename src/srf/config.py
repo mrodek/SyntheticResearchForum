@@ -25,6 +25,8 @@ class SRFConfig:
     promptledger_enabled: bool
     promptledger_api_url: str | None
     promptledger_api_key: str | None
+    arxiv_delay_seconds: float
+    min_papers: int
 
     @classmethod
     def from_env(cls) -> SRFConfig:
@@ -54,6 +56,9 @@ class SRFConfig:
                 "PROMPTLEDGER_API_URL and PROMPTLEDGER_API_KEY must both be set or both omitted."
             )
 
+        arxiv_delay_seconds = float(os.environ.get("SRF_ARXIV_DELAY_SECONDS", "3"))
+        min_papers = int(os.environ.get("SRF_MIN_PAPERS", "2"))
+
         return cls(
             llm_provider=provider,
             llm_model=model,
@@ -63,6 +68,8 @@ class SRFConfig:
             promptledger_enabled=bool(pl_url and pl_key),
             promptledger_api_url=pl_url,
             promptledger_api_key=pl_key,
+            arxiv_delay_seconds=arxiv_delay_seconds,
+            min_papers=min_papers,
         )
 
 

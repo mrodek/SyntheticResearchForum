@@ -142,3 +142,28 @@ def test_log_level_defaults_to_info(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_workspace_root_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     config = _load(monkeypatch, SRF_WORKSPACE_ROOT=None)
     assert config.workspace_root == Path("/data/workspace")
+
+
+# ---------------------------------------------------------------------------
+# Story 4.2 additions — SRF_ARXIV_DELAY_SECONDS and SRF_MIN_PAPERS
+# ---------------------------------------------------------------------------
+
+
+def test_arxiv_delay_defaults_to_3(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = _load(monkeypatch, SRF_ARXIV_DELAY_SECONDS=None)
+    assert config.arxiv_delay_seconds == 3.0
+
+
+def test_arxiv_delay_can_be_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = _load(monkeypatch, SRF_ARXIV_DELAY_SECONDS="5")
+    assert config.arxiv_delay_seconds == 5.0
+
+
+def test_min_papers_defaults_to_2(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = _load(monkeypatch, SRF_MIN_PAPERS=None)
+    assert config.min_papers == 2
+
+
+def test_min_papers_can_be_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
+    config = _load(monkeypatch, SRF_MIN_PAPERS="3")
+    assert config.min_papers == 3
