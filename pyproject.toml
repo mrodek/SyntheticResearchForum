@@ -27,6 +27,7 @@ dev = [
     "anyio[trio]>=4.3.0",
     "fpdf2>=2.7.0",
     "pyyaml>=6.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [tool.setuptools.packages.find]

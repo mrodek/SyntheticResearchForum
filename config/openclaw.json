@@ -1,0 +1,29 @@
+{
+  "gateway": {
+    "bind": "lan",
+    "auth": {
+      "mode": "token"
+    }
+  },
+  "tools": {
+    "allow": ["exec", "lobster", "group:fs", "group:web"],
+    "exec": {
+      "timeoutSec": 3600,
+      "backgroundMs": 10000,
+      "notifyOnExit": true,
+      "notifyOnExitEmptySuccess": false
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": ["/data/workspace/skills"]
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/data/workspace",
+      "contextTokens": 200000,
+      "timeoutSeconds": 3600
+    }
+  }
+}

@@ -1,0 +1,7 @@
+[deploy]
+# Install Lobster (@clawdbot/lobster, Node >= 20) then start the OpenClaw Gateway.
+# OpenClaw is deployed via the Railway one-click template — this file adds the
+# Lobster install step and Railway health-check configuration on top of that.
+startCommand = "npm install -g @clawdbot/lobster && openclaw start"
+healthcheckPath = "/health"
+healthcheckTimeout = 500

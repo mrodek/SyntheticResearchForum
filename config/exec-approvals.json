@@ -1,0 +1,12 @@
+{
+  "agents": {
+    "main": {
+      "allowlist": [
+        { "pattern": "/usr/bin/python3" },
+        { "pattern": "/usr/local/bin/python3" },
+        { "pattern": "/usr/bin/python" },
+        { "pattern": "/usr/local/bin/python" }
+      ]
+    }
+  }
+}
