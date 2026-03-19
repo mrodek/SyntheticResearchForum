@@ -5,7 +5,7 @@
 | Epic | Title | Status | Depends On |
 |---|---|---|---|
 | 1 | Foundation | Complete | — |
-| 1.1 | Runtime Infrastructure — Gateway, Lobster, OpenClaw & Railway | Not Started | Epic 1 — epic defined |
+| 1.1 | Runtime Infrastructure — Gateway, Lobster, OpenClaw & Railway | In Progress | Stories 1.1.1 ✅ 1.1.2 ✅ — 1.1.3–1.1.5 pending |
 | 3 | Newsletter Parsing & Config Generation | Complete | Epic 1 |
 | 4 | Workspace Management & Paper Extraction | Complete | Epics 1, 3 |
 | 5 | Agent Preparation Phase | Not Started | Epics 1, 4 — epic defined |
@@ -64,6 +64,8 @@ Sequencing decision: Epic 2 depends on Epics 5, 6, and 7 for its upstream contra
 | 4.2 | arXiv Paper Fetcher | 2026-03-18 |
 | 4.3 | PDF Text Extraction | 2026-03-18 |
 | 4.4 | Lobster Step Scripts & Workflow Skeleton | 2026-03-18 |
+| 1.1.1 | OpenClaw & Lobster Installation + Base Configuration | 2026-03-18 |
+| 1.1.2 | SRF Initialisation Script | 2026-03-18 |
 
 ---
 

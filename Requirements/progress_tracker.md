@@ -4,6 +4,36 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-18] - Epic 1.1 Stories 1.1.1–1.1.2: Runtime Infrastructure GREEN
+
+### Summary
+- Epic 1.1, Stories 1.1.1 and 1.1.2 — all GREEN; 118 unit tests pass, 4 skipped
+- **New (config):** `railway.toml`, `config/openclaw.json`, `config/exec-approvals.json`
+- **New (scripts):** `scripts/srf_init.py` — validates required env vars, creates workspace subdirs, builds PromptLedger tracker, registers prompts; idempotent; exits 1 on missing required vars
+- **New (tests):** `tests/unit/test_runtime_deps.py` (11 tests, 1 skipped), `tests/unit/test_srf_init.py` (6 tests)
+- **Modified:** `pyproject.toml` (+`tomli>=2.0.0; python_version < '3.11'`)
+- Commits: `b3545af` (Story 1.1.1), this commit (Story 1.1.2)
+
+### Decisions
+- **OpenClaw is Node.js** — deployed via Railway one-click template; `railway.toml` adds Lobster install step (`npm install -g @clawdbot/lobster`) and healthcheck config
+- **`OPENCLAW_WORKSPACE_DIR`** replaces old `SRF_WORKSPACE_ROOT` as the primary workspace env var for the init script; `srf.config.SRFConfig` retains `SRF_WORKSPACE_ROOT` for the Python agent runtime
+- **Python in exec-approvals, not safeBins** — OpenClaw docs exclude interpreters from `safeBins`; Python paths must be in `exec-approvals.json` allowlist instead
+- **`srf_init.py` uses subprocess-compatible output** — both structlog (stderr) and explicit `print("SRF init complete")` (stdout) so tests can detect success in either stream
+- **Tests use Python 3.11** — `srf` package requires Python 3.11+; the Anaconda 3.9 env cannot install it; tests must be run with `py -3.11 -m pytest`
+
+### Issues & Resolution
+- `tomllib` import failed on Python 3.9 — fixed with `try: import tomllib except ImportError: import tomli as tomllib` + `tomli` dev dep
+- `import srf_init` in test_srf_init_calls_register_prompts always failed (scripts/ not on sys.path) — removed; only `importlib.util.spec_from_file_location` approach remains
+- ruff F401/I001 in test file — fixed by removing unused `json`, `AsyncMock`, `os` imports and running `ruff --fix`
+- pip backtracking in Python 3.9 Anaconda env — `srf` requires 3.11+; install via `py -3.11 -m pip install -e ".[dev]"`
+
+### Next Steps
+- [ ] Story 1.1.3 — `scripts/validate_and_stage_forum.py`
+- [ ] Story 1.1.4 — Three OpenClaw Skills (SKILL.md files)
+- [ ] Story 1.1.5 — `.github/workflows/ci.yml` + `.env.example` update
+
+---
+
 ## [2026-03-18] - Epic 4 Complete: Workspace Management & Paper Extraction
 
 ### Summary
