@@ -8,7 +8,7 @@
 | 3 | Newsletter Parsing & Config Generation | Complete | Epic 1 |
 | 4 | Workspace Management & Paper Extraction | Not Started | Epics 1, 3 — epic defined |
 | 5 | Agent Preparation Phase | Not Started | Epics 1, 4 — epic defined |
-| 6 | Debate Engine: Core Discussion Loop | Not Started | Epics 1, 5 |
+| 6 | Debate Engine: Core Discussion Loop | Not Started | Epics 1, 5 — epic defined |
 | 7 | Synthesis, Evaluation & Post-Debate Processing | Not Started | Epics 1, 6 |
 | 8 | Editorial Review, Policy Proposals & Publication | Not Started | Epics 1, 7 |
 | 9 | Observability, Cost Reporting & Operational Reliability | Not Started | Epics 1, 6, 7 (drift story also needs Epic 2) |
