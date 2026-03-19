@@ -23,7 +23,7 @@
 
 | Story | Title | Status | Notes |
 |---|---|---|---|
-| 4.x | TBD | Not Started | Depends on Epic 3 complete |
+| 4.x | TBD | Not Started | Depends on Epic 3 complete; epic defined |
 
 ---
 
@@ -57,6 +57,8 @@ Sequencing decision: Epic 2 depends on Epics 5, 6, and 7 for its upstream contra
 | 3.3 | Forum Config Generation | 2026-03-17 |
 | 3.4 | Candidate Config Persistence & CLI | 2026-03-17 |
 | 3.5 | MCP Trigger Tool | 2026-03-17 |
+| CR-001 | PromptLedger: tracker.execute() — unified execution client | 2026-03-18 |
+| — | Epic 1 & 3 code aligned to tracker.execute() contracts | 2026-03-18 |
 
 ---
 
