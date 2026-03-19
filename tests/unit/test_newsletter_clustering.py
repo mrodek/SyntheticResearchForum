@@ -220,9 +220,9 @@ async def test_cluster_drops_axes_with_fewer_than_two_papers() -> None:
 @pytest.mark.asyncio
 async def test_cluster_propagates_execute_failure() -> None:
     """A failed tracker.execute() is a hard LLM failure — it propagates, not swallows."""
-    from srf.newsletter.clustering import cluster_papers
-
     import httpx
+
+    from srf.newsletter.clustering import cluster_papers
 
     doc = make_doc(tensions=["t1"], signals=[make_signal("A"), make_signal("B")])
 

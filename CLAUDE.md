@@ -282,6 +282,7 @@ await tracker.log_tool_call(
 - Tracker is injected — never imported as a global singleton inside agent functions.
 - Graceful degradation is mandatory: if `PROMPTLEDGER_API_URL` is absent, `tracker=None` and the system runs without observability using the direct provider fallback. It does not crash.
 - `tracker=None` in all unit tests. Mock `tracker.execute()` — do not mock provider SDKs.
+- `tracker.execute()` failures propagate — they represent LLM call failures, not observability failures. Only `log_span()` and `log_tool_call()` are fire-and-forget with 5xx resilience.
 - Span IDs travel through `state["trace_id"]` and `state["last_span_id"]` — never through `contextvars` across Lobster step boundaries.
 - `PROMPTLEDGER_API_KEY` must be a project-scoped key issued via `POST /v1/admin/projects`, not the PromptLedger admin key.
 

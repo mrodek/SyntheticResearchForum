@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import structlog.testing
 
 from tests.fixtures.newsletters._builders import make_cluster, make_signal
 
@@ -155,9 +154,9 @@ async def test_generate_no_error_when_tracker_none() -> None:
 @pytest.mark.asyncio
 async def test_generate_propagates_execute_failure() -> None:
     """A failed tracker.execute() is a hard LLM failure — it propagates, not swallows."""
-    from srf.newsletter.config_generator import generate_candidate_config
-
     import httpx
+
+    from srf.newsletter.config_generator import generate_candidate_config
 
     cluster = make_cluster()
 
