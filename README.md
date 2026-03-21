@@ -108,7 +108,7 @@ Newsletter (Markdown)
 | Epic | Description | Status |
 |---|---|---|
 | 1 | Foundation — scaffold, config, logging, observability | ✅ Complete |
-| 1.1 | Runtime infrastructure — OpenClaw, Lobster, Railway | ✅ Complete |
+| 1.1 | Runtime infrastructure — OpenClaw, Lobster, Railway | ⚠️ Nearly complete (Story 1.1.5 CI pipeline pending) |
 | 3 | Newsletter parsing & forum config generation | ✅ Complete |
 | 4 | Workspace management & paper extraction | ✅ Complete |
 | 5 | Agent preparation phase | ✅ Complete |
@@ -119,6 +119,68 @@ Newsletter (Markdown)
 | 2 | Agent memory (role-scoped, editorially gated) | 🔲 After first complete run |
 
 **Current test suite:** 165 unit tests, 4 skipped (Windows chmod), 0 failures.
+
+---
+
+## Deployment
+
+SRF runs on Railway using a two-repo model:
+
+| Repo | Role |
+|---|---|
+| `mrodek/clawdbot-railway-template` | Railway service source — builds and runs the OpenClaw Gateway |
+| `mrodek/SyntheticResearchForum` | SRF codebase — cloned to `/data/srf` on the persistent volume at startup |
+
+### How it works
+
+The OpenClaw template's wrapper runs `/data/workspace/bootstrap.sh` on every startup. This script:
+1. Clones (or pulls) the SRF repo to `/data/srf`
+2. Installs SRF Python dependencies into a persistent venv at `/data/venv`
+3. Copies OpenClaw skills to `/data/workspace/skills/`
+
+All state lives on the Railway volume at `/data` and survives redeploys.
+
+### First-time setup
+
+See `Requirements/Railway/RAILWAY_SETUP_GUIDE.md` for the full step-by-step guide. Summary:
+
+1. Fork `vignesh07/clawdbot-railway-template` → connect fork to Railway service
+2. Add volume at `/data`, enable HTTP Proxy on port `8080`
+3. Set required environment variables (see `.env.example`)
+4. Run `/setup` wizard at `https://<service>.up.railway.app/setup`
+5. Create `/data/workspace/bootstrap.sh` via the OpenClaw Chat exec tool
+6. Redeploy → verify `/data/srf` and `/data/venv` exist
+7. Run `srf_init.py` to confirm the service is ready
+
+### Running the pipeline
+
+Via the OpenClaw Chat (`/openclaw`), ask the agent to use the exec tool:
+
+```bash
+# Parse a sample newsletter
+/data/venv/bin/python /data/srf/scripts/parse_newsletter.py \
+  --source-path /data/srf/.newsletter/<newsletter-file>.md \
+  --output-dir /data/workspace/newsletters
+
+# Then stage and run the full Lobster pipeline via the review_forum_debate_format skill
+```
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `SETUP_PASSWORD` | Yes | Protects `/setup` and `/openclaw` |
+| `PORT` | Yes | Must be `8080` |
+| `SRF_LLM_PROVIDER` | Yes | `anthropic` or `openai` |
+| `SRF_LLM_MODEL` | Yes | e.g. `claude-haiku-4-5-20251001` for testing, `claude-sonnet-4-6` for production |
+| `SRF_LLM_API_KEY` | Yes | Provider API key |
+| `OPENCLAW_STATE_DIR` | Yes | `/data/.openclaw` |
+| `OPENCLAW_WORKSPACE_DIR` | Yes | `/data/workspace` |
+| `OPENCLAW_GATEWAY_TOKEN` | Recommended | Secures MCP endpoints |
+| `PROMPTLEDGER_API_URL` | Optional | Enables observability (both vars or neither) |
+| `PROMPTLEDGER_API_KEY` | Optional | Project-scoped PromptLedger key |
+
+See `.env.example` for the full list including runtime tuning variables.
 
 ---
 
