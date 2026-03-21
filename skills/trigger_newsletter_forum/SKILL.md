@@ -18,7 +18,7 @@ Use this skill when a researcher provides a newsletter PDF, Markdown file, or UR
 2. Use the exec tool to run the newsletter parsing pipeline:
 
    ```
-   python scripts/parse_newsletter.py --source-path <source_path> --output-dir /data/workspace/newsletters
+   /data/venv/bin/python /data/srf/scripts/parse_newsletter.py --file <source_path>
    ```
 
 3. Review the parsed output. The script will produce a JSON file in `/data/workspace/newsletters/` listing extracted paper candidates and a `CandidateForumConfig`.

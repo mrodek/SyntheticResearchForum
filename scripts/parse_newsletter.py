@@ -45,13 +45,13 @@ async def run_pipeline(
     newsletter_slug = _slug_from_path(newsletter_path)
 
     state: dict = {}
-    clusters = await cluster_papers(doc, llm_client, tracker=tracker, state=state)
+    clusters = await cluster_papers(doc, tracker=tracker, state=state, llm_client=llm_client)
 
     configs = []
     for cluster in clusters:
         cluster.newsletter_slug = newsletter_slug
         config = await generate_candidate_config(
-            cluster, llm_client, tracker=tracker, state=state
+            cluster, tracker=tracker, state=state, llm_client=llm_client
         )
         configs.append(config)
 
@@ -137,8 +137,12 @@ def _build_stub_llm_client() -> Any:
                         system=system,
                         messages=user_messages,
                     )
-                    response.content = response.content[0].text
-                    return response
+                    text = response.content[0].text
+
+                    class _Result:
+                        content = text
+
+                    return _Result()
 
             return _AnthropicClient()
         except ImportError:
