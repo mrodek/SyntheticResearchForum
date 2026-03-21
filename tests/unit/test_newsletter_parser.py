@@ -167,3 +167,37 @@ def test_parser_raises_parse_error_when_pattern_watch_absent() -> None:
 
     with pytest.raises(ParseError, match="(?i)pattern watch"):
         parse_newsletter(FIXTURES / "missing_pattern_watch.md")
+
+
+# ---------------------------------------------------------------------------
+# BUG-001 — actual newsletter format (bold header, [Link](URL), paragraph watch)
+# ---------------------------------------------------------------------------
+
+
+def test_parser_handles_bold_issue_header() -> None:
+    """BUG-001: issue header as **Issue #N — ...** (bold inline) must be accepted."""
+    from srf.newsletter.parser import parse_newsletter
+
+    result = parse_newsletter(FIXTURES / "actual_format.md")
+    assert result.issue_number == 2
+    assert result.subtitle == "Retrieval and Collective Effects"
+
+
+def test_parser_extracts_url_from_markdown_link() -> None:
+    """BUG-001: URL in [Link](URL) syntax must be extracted when **URL:** label is absent."""
+    from srf.newsletter.parser import parse_newsletter
+
+    result = parse_newsletter(FIXTURES / "actual_format.md")
+    first = result.primary_signals[0]
+    assert first.url == "https://arxiv.org/abs/2602.16662v1"
+    assert first.arxiv_id == "2602.16662"
+    assert first.source == "arxiv"
+
+
+def test_parser_extracts_pattern_watch_paragraphs() -> None:
+    """BUG-001: Pattern Watch section with bold-headed paragraphs (no bullets) must yield items."""
+    from srf.newsletter.parser import parse_newsletter
+
+    result = parse_newsletter(FIXTURES / "actual_format.md")
+    assert len(result.pattern_watch) == 2
+    assert all(item for item in result.pattern_watch)

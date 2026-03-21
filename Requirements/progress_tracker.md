@@ -4,6 +4,32 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-20] - BUG-001: Newsletter Parser Format Mismatch
+
+### Summary
+- Created `Requirements/bugs/BUG-001-newsletter-parser-format-mismatch.md` — documents 3 root causes
+- Added `tests/fixtures/newsletters/actual_format.md` — fixture with actual newsletter format (bold header, `[Link](URL)` links, paragraph Pattern Watch)
+- Added 3 failing tests (RED) for each root cause, then fixed `src/srf/newsletter/parser.py` (GREEN)
+- Tests: 175 passing, 4 skipped, 1 pre-existing failure (Story 1.1.5 railway.toml test)
+
+### Decisions
+- **Bold issue header fallback** — `_parse_content` now tries `## Issue #N` regex first, then `**Issue #N**` bold regex; both formats remain valid
+- **Markdown link URL fallback** — `_parse_one_signal` tries `**URL:**` label extraction first; if empty, tries `[Link](URL)` pattern via new `_extract_markdown_link()` helper
+- **Paragraph Pattern Watch fallback** — `_extract_bullets()` result used when non-empty; otherwise new `_extract_paragraphs()` helper splits body on blank lines
+- No fixture files modified; all 11 pre-existing parser tests remain GREEN
+
+### Issues & Resolution
+- Root cause 1: `re.search(r"^## Issue #(\d+)...")` never matched `**Issue #1 — ...**` — fixed with bold inline regex fallback
+- Root cause 2: `_extract_field(body, "URL")` looked for `**URL:**` label absent in actual format — fixed with `_extract_markdown_link()` helper
+- Root cause 3: `_extract_bullets(pw_body)` returned `[]` for prose paragraphs — fixed with `_extract_paragraphs()` fallback
+
+### Next Steps
+- [ ] Redeploy on Railway and rerun `parse_newsletter.py` against `.newsletters/weekly_field_notes_issue_1.md`
+- [ ] Story 1.1.5 — implement `.github/workflows/ci.yml`
+- [ ] Begin Epic 6: Debate Engine
+
+---
+
 ## [2026-03-19] - Railway Deployment Fixes & Dockerfile
 
 ### Summary

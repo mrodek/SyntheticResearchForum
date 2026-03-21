@@ -34,8 +34,10 @@ def parse_newsletter(path: Path) -> NewsletterDoc:
 # ---------------------------------------------------------------------------
 
 def _parse_content(content: str, source_path: Path) -> NewsletterDoc:
-    # 1 — Issue header
+    # 1 — Issue header: accept both H2 (## Issue #N — ...) and bold (**Issue #N — ...**)
     issue_match = re.search(r"^## Issue #(\d+)\s*[—–-]\s*(.+)$", content, re.MULTILINE)
+    if not issue_match:
+        issue_match = re.search(r"^\*\*Issue #(\d+)\s*[—–-]\s*(.+?)\*\*", content, re.MULTILINE)
     if not issue_match:
         raise ParseError(f"Could not find issue header ('## Issue #N — ...') in {source_path}")
     issue_number = int(issue_match.group(1))
@@ -48,7 +50,7 @@ def _parse_content(content: str, source_path: Path) -> NewsletterDoc:
     pw_body = _find_section(sections, "pattern watch")
     if pw_body is None:
         raise ParseError(f"Pattern Watch section is missing from {source_path}")
-    pattern_watch = _extract_bullets(pw_body)
+    pattern_watch = _extract_bullets(pw_body) or _extract_paragraphs(pw_body)
 
     # 4 — Primary Signals (required; must have at least one paper)
     ps_body = _find_section(sections, "primary signals")
@@ -130,7 +132,7 @@ def _extract_primary_signals(ps_body: str) -> list[PrimarySignal]:
 
 def _parse_one_signal(title: str, body: str) -> PrimarySignal:
     """Parse a single Primary Signal block into a PrimarySignal dataclass."""
-    url = _extract_field(body, "URL")
+    url = _extract_field(body, "URL") or _extract_markdown_link(body)
     arxiv_id, source = _classify_url(url)
 
     if source == "other" and url:
@@ -162,6 +164,25 @@ def _extract_field(body: str, label: str) -> str:
     if next_bold:
         return after[: next_bold.start()].strip()
     return after.strip()
+
+
+def _extract_markdown_link(body: str) -> str:
+    """Extract the URL from the first [text](URL) markdown link in body."""
+    match = re.search(r"\[.+?\]\((.+?)\)", body)
+    return match.group(1) if match else ""
+
+
+def _extract_paragraphs(body: str) -> list[str]:
+    """Extract non-empty paragraphs from a section body (fallback for non-bullet sections).
+
+    Splits on blank lines, strips each block, and discards separator lines (---).
+    """
+    paragraphs = []
+    for block in re.split(r"\n\s*\n", body):
+        stripped = block.strip()
+        if stripped and stripped != "---":
+            paragraphs.append(stripped)
+    return paragraphs
 
 
 def _classify_url(url: str) -> tuple[str | None, str]:
