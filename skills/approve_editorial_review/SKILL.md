@@ -32,6 +32,16 @@ Use this skill when a researcher receives an editorial review notification for a
    - Confirm to the researcher that the synthesis has been rejected.
    - Ask if they would like to provide specific feedback for the next debate iteration.
 
+## Error Handling
+
+**This skill must never edit any file under `/data/srf/`.** That directory is a git-tracked deployment clone. Editing it in response to errors bypasses version control and code review. All source-level fixes must be made in the repository by the developer and redeployed.
+
+| Failure | Required action |
+|---|---|
+| Lobster tool returns an error on resume | Report the full error response to the researcher verbatim. Stop. Do not retry. The workflow may need to be inspected or manually recovered by the developer. |
+| `resume_token` is rejected as invalid or expired | Report that the token was not accepted and that Lobster resume tokens are single-use and time-limited. Ask the researcher to check whether the workflow already completed or timed out. Stop. Do not attempt to generate or guess an alternative token. |
+| `decision` value is anything other than `"approve"` or `"reject"` | Ask the researcher to clarify before proceeding. Do not invoke the lobster tool with an unrecognised decision value. |
+
 ## Notes
 
 - The `resume_token` is a Lobster workflow identifier — it is only valid once and expires when the workflow is either resumed or times out.

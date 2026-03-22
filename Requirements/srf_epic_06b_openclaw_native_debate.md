@@ -60,6 +60,22 @@ When the debate closes, the orchestrator writes a final `debate_closed` sentinel
 
 `MODERATOR.md`, `PAPER_AGENT.md`, `CHALLENGER.md`, and `GUARDRAIL.md` are loaded by the skill as context documents. Updating a role definition requires updating a Markdown file and redeploying, not editing Python, running tests, and cutting a release. Prompt governance (via `validate_prompts.py`) still applies — these files are the prompt definitions.
 
+### Every skill document must specify its error behaviour explicitly
+
+During the first end-to-end pipeline test, `trigger_newsletter_forum` called `parse_newsletter.py` via the exec tool. The script failed. The skill had no instruction for that case. The agent filled the silence by diagnosing the failure, opening `parse_newsletter.py`, and editing it directly — adding a heuristic fallback. The pipeline then ran. The agent believed it had done the right thing.
+
+The consequence: uncommitted edits to a git-tracked file caused `git pull --ff-only` to fail on the next redeploy. The repo was no longer the source of truth for what was running.
+
+The root cause: the skill's failure path was unspecified. Any unspecified failure state is an implicit grant of agent agency.
+
+**Rule for all SRF skill documents:** every exec tool call must be followed by explicit error handling instructions. The safe default is report and stop:
+
+> If the script exits with a non-zero code, report the full stderr output to the researcher verbatim and stop. Do not read other files to diagnose the cause. Do not edit any files. Do not retry.
+
+Authorisation to investigate or fix must be explicitly stated in the skill document. For SRF skills that call Python scripts, investigation and fixing are never authorised — that is the role of the developer, not the agent.
+
+`run_forum_debate/SKILL.md` must include an explicit Error Handling section that covers: failed context load, subagent failure, transcript write failure, and unexpected agent output format. Each case must specify the exact action the agent takes — always "report and stop", never "attempt to fix".
+
 ### Epic 6 (Python-first) is superseded, not deleted
 
 `srf_epic_06_debate_engine.md` is retained as a reference. If the OpenClaw-native approach fails to meet quality or observability requirements after a complete run, Epic 6 is the fallback. The two approaches share the same transcript format and the same workspace layout, so switching back does not require migrating data.
@@ -181,6 +197,19 @@ Scenario: GUARDRAIL.md specifies three signal levels and what each triggers
   When  its content is parsed
   Then  it defines signal levels "ok", "warning", and "critical"
   And   it specifies that "critical" forces an immediate Moderator re-routing turn
+
+Scenario: SKILL.md contains an explicit Error Handling section
+  Given the file skills/run_forum_debate/SKILL.md
+  When  its content is parsed
+  Then  it contains a section named "Error Handling"
+  And   that section specifies the action for: failed context load, subagent failure, transcript write failure, unexpected output format
+  And   each specified action is "report and stop" — no investigation, no file editing, no retry
+
+Scenario: SKILL.md explicitly prohibits editing files under /data/srf/
+  Given the file skills/run_forum_debate/SKILL.md
+  When  its content is parsed
+  Then  it contains an explicit instruction that the agent must never edit files under /data/srf/
+  And   it states that source file edits are not within the agent's authorised scope
 ```
 
 **TDD Notes:** These tests verify document structure, not LLM behavior. Parse with `re.search` for section headings and key phrases. Keep assertions focused on the presence of structural requirements — do not assert exact prose wording. A separate live smoke test (Story 6B.4) validates that the skill actually runs.
@@ -388,6 +417,21 @@ The Moderator is not required to complete every phase — if limits are reached 
 - Speaker role
 - Framing question
 - Evaluation criteria: fabricated evidence, grounding violations, personal attacks, evasion, epistemic bad faith
+
+### Error Handling (mandatory section in SKILL.md)
+
+The skill must include an explicit Error Handling section covering the following cases. In every case, the required action is report and stop — never investigate, never edit files, never retry.
+
+| Failure | Required action |
+|---|---|
+| `debate_context.json` missing or malformed JSON | Report the file path and parse error to the researcher. Stop immediately. Do not attempt to locate or reconstruct the context. |
+| Subagent returns empty or unparseable output | Report the subagent's role, turn number, and the raw output received. Write a `DEBATE_ERROR` sentinel to the transcript. Stop. |
+| Transcript write fails (file I/O error) | Report the error and the turn that could not be written. Stop. The partial transcript remains on disk for inspection. |
+| Unexpected output format from Moderator subagent | Report the raw output received. Do not guess at the intended routing decision. Stop. |
+
+Additionally, the Error Handling section must include this explicit constraint:
+
+> This skill must never edit any file under `/data/srf/`. That directory is a git-tracked deployment clone. Editing it in response to errors bypasses version control and code review, and causes `git pull` to fail on the next redeploy. All source-level fixes must be made in the repository by the developer and redeployed. If an error appears to require a source file change, report it and stop.
 
 ### Transcript JSON Line Format
 

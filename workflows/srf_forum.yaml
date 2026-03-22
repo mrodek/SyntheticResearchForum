@@ -24,11 +24,13 @@ steps:
     # Output: { ...prev, agents: [{ agent_id, role, status, prep_artifact_path }] }
 
   # ── Phases 7–11: Debate ─────────────────────────────────────────────────────
-  # The entire debate loop runs as a single step via the Python debate orchestrator.
+  # Bridge script writes agents to state.json, prepares debate_context.json,
+  # triggers run_forum_debate OpenClaw skill, polls for DEBATE_CLOSED sentinel,
+  # validates transcript, and emits transcript metadata to stdout.
   - id: debate
-    command: echo placeholder
+    command: python scripts/run_debate_bridge.py
     stdin: $agent_preparation.json
-    # Output: { ...prev, transcript_path, turn_count, debate_status }
+    # Output: { ...prev, transcript_path, turn_count, debate_status, close_reason }
 
   # ── Phase 12: Synthesis ─────────────────────────────────────────────────────
   - id: synthesis

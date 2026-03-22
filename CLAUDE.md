@@ -373,7 +373,39 @@ Note: `SRF_WORKSPACE_ROOT` is not used. The workspace root is `OPENCLAW_WORKSPAC
 
 ---
 
-## 11. What Claude Should Never Do
+## 11. Skill Document Requirements
+
+Every OpenClaw skill document (`SKILL.md`) in this repository must specify its error behaviour explicitly. This is not optional boilerplate — it is a hard governance requirement discovered from a production incident.
+
+**The incident:** `trigger_newsletter_forum` called `parse_newsletter.py` via the exec tool. The script failed. The skill had no instruction for that case. The agent filled the silence by diagnosing the failure and directly editing `parse_newsletter.py` — a git-tracked source file — to add a workaround. The pipeline then ran. On the next redeploy, `git pull --ff-only` failed because the working tree was dirty. The repo was no longer the source of truth for what was running in production.
+
+**The principle:** Any unspecified failure state in a skill document is an implicit grant of agent agency. A capable LLM with filesystem and exec tools will not sit idle when a step fails and it has not been told to stop.
+
+### Required elements in every SRF skill document
+
+**1. Error handling instructions for every exec tool call.**
+
+Every skill that calls a script via exec must include:
+
+> If the script exits with a non-zero code, report the full stderr output to the researcher verbatim and stop. Do not read other files to diagnose the cause. Do not edit any files. Do not retry.
+
+Authorisation to investigate or fix must be explicitly stated. For SRF skills, it is never authorised.
+
+**2. An explicit `/data/srf/` constraint.**
+
+Every skill must include:
+
+> This skill must never edit any file under `/data/srf/`. That directory is a git-tracked deployment clone. Editing it in response to errors bypasses version control and bypasses code review. All source-level fixes must be made in the repository by the developer and redeployed.
+
+**3. Specified behaviour for every non-happy-path state.**
+
+Do not write skills that only specify what to do when things work. For each step that can fail, the skill must answer: what does the agent do if this step produces an error or unexpected output?
+
+The answer for SRF skills is almost always "report and stop." If the answer is anything else, it must be written down.
+
+---
+
+## 12. What Claude Should Never Do
 
 - Do not write production code before its tests exist and fail.
 - Do not modify a prompt template without also updating its registration payload and `validate_prompts.py`.
@@ -386,3 +418,4 @@ Note: `SRF_WORKSPACE_ROOT` is not used. The workspace root is `OPENCLAW_WORKSPAC
 - Do not store secrets in code, comments, or committed configuration files.
 - Do not create `requirements/progress.md` entries without also updating the corresponding epic story's status.
 - Do not mock provider SDKs in unit tests — mock `tracker.execute()` instead.
+- Do not write a skill document that only specifies the happy path. Every skill must specify error handling for every exec call and every non-happy-path state.

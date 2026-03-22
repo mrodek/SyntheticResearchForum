@@ -289,3 +289,26 @@ def test_clustering_prompt_is_registered() -> None:
     clustering_entry = next(p for p in NEWSLETTER_PROMPTS if p["name"] == "newsletter.paper_clustering")
     assert "{tension_axes}" in clustering_entry["template_source"]
     assert "{paper_summaries}" in clustering_entry["template_source"]
+
+
+# ---------------------------------------------------------------------------
+# BUG-003 — CLUSTERING_PROMPT must not contain {{ or }} (never .format()-ted)
+# ---------------------------------------------------------------------------
+
+
+def test_clustering_prompt_json_example_uses_single_braces() -> None:
+    """CLUSTERING_PROMPT is used as a static string — .format() is never called on it.
+
+    Double braces ({{ and }}) are only meaningful in .format() template strings.
+    When the prompt is passed as-is to the LLM, the model sees literal {{ and }}
+    in the JSON example, which is malformed JSON notation and causes the LLM to
+    return empty or unparseable responses.
+    """
+    from srf.prompts.newsletter import CLUSTERING_PROMPT
+
+    assert "{{" not in CLUSTERING_PROMPT, (
+        "CLUSTERING_PROMPT contains {{ which appears literally to the LLM and breaks JSON examples"
+    )
+    assert "}}" not in CLUSTERING_PROMPT, (
+        "CLUSTERING_PROMPT contains }} which appears literally to the LLM and breaks JSON examples"
+    )

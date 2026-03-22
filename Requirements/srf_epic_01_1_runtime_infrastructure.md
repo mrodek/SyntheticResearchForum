@@ -341,15 +341,17 @@ triggers SRF — they must match the Python scripts they reference.
 
 ---
 
-### Story 1.1.5 — CI Pipeline & Deployment Documentation
+### Story 1.1.5 — CI Pipeline & Railway Auto-Deploy
 
 **As a** developer,
-**I would like** a GitHub Actions CI workflow and complete deployment documentation,
-**so that** every push is validated automatically and any developer can reproduce the
-deployment from scratch.
+**I would like** a GitHub Actions CI workflow that validates every push and automatically
+deploys to Railway when tests pass on `main`,
+**so that** every SRF code change is tested before it reaches Railway and no manual
+redeploy is needed.
 
 **Files:**
 - NEW: `.github/workflows/ci.yml`
+- NEW: `tests/unit/test_ci_workflow.py`
 - MODIFY: `.env.example`  _(add all vars from Epics 1–6)_
 
 **Acceptance Criteria:**
@@ -367,11 +369,19 @@ Scenario: CI runs ruff before pytest
   And   it contains a step running "pytest tests/unit -v --tb=short"
   And   the ruff step precedes the pytest step
 
-Scenario: CI runs validate_prompts.py on pull requests
+Scenario: CI runs validate_prompts.py on every push
   Given .github/workflows/ci.yml
   When  it is parsed
   Then  it contains a step running "python scripts/validate_prompts.py --dry-run"
   And   the step uses continue-on-error: false
+
+Scenario: CI triggers Railway redeploy on push to main after tests pass
+  Given .github/workflows/ci.yml
+  When  it is parsed
+  Then  it contains a step that POSTs to the Railway deploy hook URL
+  And   that step only runs on push to main (not on pull_request)
+  And   that step runs after pytest passes
+  And   the deploy hook URL is read from secrets.RAILWAY_DEPLOY_HOOK
 
 Scenario: .env.example contains all required SRF Python script variables
   Given .env.example
@@ -398,6 +408,11 @@ Scenario: CI workflow uses continue-on-error: false for all steps
 **TDD Notes:** All tests are pure YAML/file parse assertions — no CI execution required. The
 `.env.example` test iterates the expected variable names and asserts each appears as a line
 in the file. The workflow YAML test uses `yaml.safe_load` to navigate the steps list.
+
+**Railway setup required before this story is complete:**
+- Service → Settings → Deploy → Deploy Trigger → copy the webhook URL
+- Add as `RAILWAY_DEPLOY_HOOK` secret in the SRF GitHub repo (Settings → Secrets → Actions)
+- Enable "Wait for CI" in Railway → service → Settings → Source
 
 ---
 

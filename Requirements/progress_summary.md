@@ -9,23 +9,29 @@
 | 3 | Newsletter Parsing & Config Generation | Complete | Epic 1 |
 | 4 | Workspace Management & Paper Extraction | Complete | Epics 1, 3 |
 | 5 | Agent Preparation Phase | Complete | |
-| 6 | Debate Engine: Core Discussion Loop | Not Started | Epics 1, 5 — epic defined |
-| 7 | Synthesis, Evaluation & Post-Debate Processing | Not Started | Epics 1, 6 |
+| 6 | Debate Engine: Core Discussion Loop | **Skipped** | Superseded by Epic 6B (OpenClaw-native). Decision confirmed 2026-03-22. |
+| 7 | Synthesis, Evaluation & Post-Debate Processing | Not Started | Epics 1, 6B |
 | 8 | Editorial Review, Policy Proposals & Publication | Not Started | Epics 1, 7 |
-| 9 | Observability, Cost Reporting & Operational Reliability | Not Started | Epics 1, 6, 7 (drift story also needs Epic 2) |
-| 2 | Agent Memory | Not Started | Epics 1, 5, 6, 7 — begins after first complete forum run |
+| 11 | PromptLedger Proxy Infrastructure | Not Started | Epic 6B complete — prerequisite for Epic 9 turn-level telemetry |
+| 9 | Observability, Cost Reporting & Operational Reliability | Not Started | Epics 1, 6B, 7, 11 (drift story also needs Epic 2) |
+| 2 | Agent Memory | Not Started | Epics 1, 5, 6B, 7 — begins after first complete forum run |
 | 10 | Prompt Governance & Longitudinal Quality Tracking | Not Started | Epics 1, 2, 7, 8 |
 
 > **Note:** Epic 2 is sequenced after Epics 1–8. The system runs correctly without memory on the first forum run — all injection points return empty blocks gracefully. Epic 2 begins once the first complete run has established the upstream contracts it depends on.
+>
+> **Note:** Epic 6 (Python-first debate engine) was skipped in favour of Epic 6B (OpenClaw-native). As a consequence, per-turn PromptLedger telemetry requires proxy infrastructure (Epic 11) before Epic 9 observability stories are meaningful. Phase-level spans via the bridge script remain available without the proxy.
 
 ---
 
-## Active Sprint — Epic 6: Debate Engine
+## Active Sprint — Epic 6B: Debate Engine (OpenClaw Native)
 
 | Story | Title | Status | Notes |
 |---|---|---|---|
 | 1.1.5 | CI Pipeline (GitHub Actions) | Not Started | `.github/workflows/ci.yml` never created — story was incorrectly marked Complete |
-| 6.x | Debate Engine: Core Discussion Loop | Not Started | Depends on Epic 5 complete — ✓ |
+| 6B.1 | Debate Context Document | GREEN | `scripts/prepare_debate_context.py` — 8 tests passing |
+| 6B.2 | Forum Debate Skill Documents | GREEN | SKILL.md + MODERATOR.md + PAPER_AGENT.md + CHALLENGER.md + GUARDRAIL.md — 12 tests passing |
+| 6B.3 | Transcript Validator | GREEN | `scripts/validate_transcript.py` — 7 tests passing |
+| 6B.4 | Bridge Script & Pipeline Integration | GREEN | `scripts/run_debate_bridge.py` + workflow wired — 6 tests passing |
 
 ---
 

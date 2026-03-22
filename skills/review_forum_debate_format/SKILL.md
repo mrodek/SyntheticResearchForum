@@ -18,12 +18,12 @@ Use this skill when a researcher has reviewed the candidate forum configuration 
 2. Use the exec tool to validate and stage the forum:
 
    ```
-   python scripts/validate_and_stage_forum.py --config-path <config_path>
+   /data/venv/bin/python /data/srf/scripts/validate_and_stage_forum.py --config-path <config_path>
    ```
 
    The script exits 0 on success and writes trigger JSON to stdout. Capture this output — it contains `forum_id`, `workspace_path`, and `trace_id`.
 
-3. Parse the trigger JSON from stdout. If the script exits non-zero, report the error from stderr to the researcher and stop.
+3. Parse the trigger JSON from stdout.
 
 4. Use the lobster tool to launch the srf_forum workflow with the trigger JSON:
 
@@ -32,6 +32,16 @@ Use this skill when a researcher has reviewed the candidate forum configuration 
    ```
 
 5. Confirm to the researcher that the forum debate pipeline has been launched. Provide the `forum_id` and note that they will be prompted for editorial approval when the debate completes.
+
+## Error Handling
+
+**This skill must never edit any file under `/data/srf/`.** That directory is a git-tracked deployment clone. Editing it in response to errors bypasses version control and code review, and causes `git pull` to fail on the next redeploy. All source-level fixes must be made in the repository by the developer and redeployed.
+
+| Failure | Required action |
+|---|---|
+| Script in step 2 exits non-zero | Report the full stderr output to the researcher verbatim. Stop. Do not read other files to diagnose the cause. Do not edit any files. Do not retry. Tell the researcher to fix the underlying issue and re-invoke the skill. |
+| Script exits 0 but stdout is empty or not valid JSON | Report what was received (empty output, parse error). Stop. Do not attempt to construct or guess the trigger JSON. |
+| Lobster tool in step 4 returns an error | Report the lobster error response to the researcher verbatim. Stop. The forum workspace may have been created by step 2 — note the `workspace_path` so the researcher can inspect or clean up manually. |
 
 ## Notes
 

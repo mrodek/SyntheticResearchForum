@@ -18,10 +18,10 @@ For each tension axis, identify which papers (by title) most directly address th
 A paper may appear under multiple axes if it genuinely speaks to more than one.
 
 Return ONLY valid JSON with this exact structure:
-{{
+{
   "axis name": ["Paper Title One", "Paper Title Two"],
   ...
-}}
+}
 
 Include only axes that have at least one matching paper. \
 Use the exact paper titles as provided. Do not add explanations outside the JSON."""

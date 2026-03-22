@@ -4,6 +4,58 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-21] - Governance: Skill Error Handling Rule
+
+### Summary
+- Added Section 11 (Skill Document Requirements) to `CLAUDE.md` — hard governance rule for all skill documents
+- Updated `Requirements/openclaw_native_vision.md` — new section "The Silent Failure Path: Skill Error Handling" documenting the incident, root cause, and architectural principle
+- Updated `Requirements/srf_epic_06b_openclaw_native_debate.md` — new Architecture Decision + Error Handling section in SKILL.md spec + 2 new Acceptance Criteria scenarios for Story 6B.2
+- Updated `skills/trigger_newsletter_forum/SKILL.md` — added explicit Error Handling section closing the gap that caused the incident
+
+### Decisions
+- **"Report and stop" is the safe default** — any deviation (investigate, retry, fix) must be explicitly authorised in the skill document; for SRF skills it is never authorised
+- **`/data/srf/` is explicitly off-limits** — stated in every skill document and in CLAUDE.md; this is the boundary between the agent layer and the deterministic layer
+- **Error handling is structural, not optional** — added to CLAUDE.md "What Claude Should Never Do" so it applies to all future skill authoring in this session and beyond
+
+### Issues & Resolution
+- Root cause of the incident: `trigger_newsletter_forum/SKILL.md` had no instruction for what to do when `parse_newsletter.py` exited non-zero. The agent filled the silence by editing source files — rational behaviour, wrong outcome.
+- The fix is not technical — it is governance. Skills must specify failure paths as carefully as they specify happy paths.
+
+### Lessons Learned
+- Unspecified failure states in skill documents are implicit grants of agent agency
+- A capable LLM with filesystem and exec tools will always attempt to be helpful — the only way to constrain that helpfulness is explicit instruction
+- The damage from this class of error is not the agent's action itself but the side effect on the git working tree, which breaks the deployment contract
+
+### Next Steps
+- [ ] When writing `skills/run_forum_debate/SKILL.md` (Story 6B.2), include the Error Handling section before any other section is considered complete
+- [ ] Audit any future skills for unspecified failure paths before merging
+
+---
+
+## [2026-03-21] - BUG-003: Clustering Prompt Double-Brace
+
+### Summary
+- Created `Requirements/bugs/BUG-003-clustering-prompt-double-brace.md`
+- Added `test_clustering_prompt_json_example_uses_single_braces` to `tests/unit/test_newsletter_clustering.py` (RED → GREEN)
+- Fixed `src/srf/prompts/newsletter.py`: `{{` → `{` and `}}` → `}` in `CLUSTERING_PROMPT` JSON example
+- Tests: 177 passing, 5 skipped, 1 pre-existing failure (Story 1.1.5 railway.toml test)
+
+### Decisions
+- `CLUSTERING_PROMPT` is a static string — `.format()` is never called on it. `{{`/`}}` escape sequences only resolve during `.format()`, so they appeared literally to the LLM as malformed JSON notation.
+- Fix is minimal: change only the JSON example block. The `{tension_axes}` and `{paper_summaries}` placeholders in the descriptive text are intentional and remain unchanged.
+
+### Issues & Resolution
+- LLM returned empty content (`""`) → `json.loads("")` raised `Expecting value: line 1 column 1 (char 0)`
+- Root cause: `{{` and `}}` in the JSON example block confused the model
+- The OpenClaw agent on Railway had added a heuristic fallback to work around this — that fallback is not committed to repo; the real fix is now in the prompt
+
+### Next Steps
+- [ ] Redeploy on Railway and rerun `parse_newsletter.py` — should now get real LLM clustering instead of heuristic fallback
+- [ ] Story 1.1.5 — implement `.github/workflows/ci.yml`
+- [ ] Decide: Epic 6 (Python debate) vs Epic 6B (OpenClaw-native debate)
+
+---
+
 ## [2026-03-20] - BUG-001: Newsletter Parser Format Mismatch
 
 ### Summary
