@@ -13,6 +13,7 @@ dependencies = [
     "anyio>=4.3.0",
     "mcp>=1.0.0; python_version >= '3.10'",
     "pdfplumber>=0.11.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]
