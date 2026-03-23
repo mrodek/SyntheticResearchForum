@@ -298,3 +298,41 @@ def test_paper_preparation_prompt_has_required_slots() -> None:
     assert "{paper_text}" in template
     assert "{framing_question}" in template
     assert "{memory_block}" in template
+
+
+# ---------------------------------------------------------------------------
+# BUG-008: tracker.execute() must include model field for PL /v1/executions/run
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_prepare_paper_agent_passes_model_to_tracker_execute() -> None:
+    """prepare_paper_agent must pass model={provider, model_name} to tracker.execute().
+
+    BUG-008: PL /v1/executions/run requires a model field. Our execute() calls
+    were missing it, causing HTTP 500 KeyError: 'model' on every agent prep call.
+    """
+    from srf.agents.preparation import prepare_paper_agent
+
+    assignment = _make_assignment(agent_id="paper-agent-1")
+    paper = _make_paper()
+    tracker = _make_mock_tracker(span_id="span-bug008")
+    config = MagicMock()
+    config.paper_token_budget = 80000
+    config.llm_provider = "anthropic"
+    config.llm_model = "claude-sonnet-4-6"
+    state: dict = {"trace_id": "t1"}
+
+    await prepare_paper_agent(
+        assignment=assignment,
+        paper_content=paper,
+        framing_question="A question?",
+        tracker=tracker,
+        config=config,
+        state=state,
+        memory_block="",
+    )
+
+    call_kwargs = tracker.execute.call_args.kwargs
+    assert "model" in call_kwargs, "tracker.execute() must include model kwarg (BUG-008)"
+    assert call_kwargs["model"] == {"provider": "anthropic", "model_name": "claude-sonnet-4-6"}

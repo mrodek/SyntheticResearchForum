@@ -172,6 +172,7 @@ async def prepare_paper_agent(
             mode="mode2",
             state=state,
             agent_id=assignment.agent_id,
+            model={"provider": config.llm_provider, "model_name": config.llm_model},
         )
         response_text = result.response_text
         state["last_span_id"] = result.span_id
@@ -241,6 +242,7 @@ async def prepare_moderator(
             mode="mode2",
             state=state,
             agent_id="moderator",
+            model={"provider": config.llm_provider, "model_name": config.llm_model},
         )
         response_text = result.response_text
         state["last_span_id"] = result.span_id
@@ -305,6 +307,7 @@ async def prepare_challenger(
             mode="mode2",
             state=state,
             agent_id="challenger",
+            model={"provider": config.llm_provider, "model_name": config.llm_model},
         )
         response_text = result.response_text
         state["last_span_id"] = result.span_id

@@ -245,3 +245,68 @@ def test_challenger_preparation_prompt_has_required_slots() -> None:
     assert "{framing_question}" in template
     assert "{paper_abstracts}" in template
     assert "{memory_block}" in template
+
+
+# ---------------------------------------------------------------------------
+# BUG-008: tracker.execute() must include model field for PL /v1/executions/run
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_prepare_moderator_passes_model_to_tracker_execute() -> None:
+    """prepare_moderator must pass model={provider, model_name} to tracker.execute().
+
+    BUG-008: PL /v1/executions/run requires a model field.
+    """
+    from srf.agents.preparation import prepare_moderator
+
+    roster = _make_roster()
+    tracker = _make_mock_tracker(_valid_moderator_json(), span_id="span-bug008-mod")
+    config = MagicMock()
+    config.llm_provider = "anthropic"
+    config.llm_model = "claude-sonnet-4-6"
+    state: dict = {"trace_id": "t1"}
+
+    await prepare_moderator(
+        roster=roster,
+        framing_question="A question?",
+        paper_summaries=["Summary 1", "Summary 2"],
+        tracker=tracker,
+        config=config,
+        state=state,
+        memory_block="",
+    )
+
+    call_kwargs = tracker.execute.call_args.kwargs
+    assert "model" in call_kwargs, "tracker.execute() must include model kwarg (BUG-008)"
+    assert call_kwargs["model"] == {"provider": "anthropic", "model_name": "claude-sonnet-4-6"}
+
+
+@pytest.mark.asyncio
+async def test_prepare_challenger_passes_model_to_tracker_execute() -> None:
+    """prepare_challenger must pass model={provider, model_name} to tracker.execute().
+
+    BUG-008: PL /v1/executions/run requires a model field.
+    """
+    from srf.agents.preparation import prepare_challenger
+
+    roster = _make_roster()
+    tracker = _make_mock_tracker(_valid_challenger_json(), span_id="span-bug008-chal")
+    config = MagicMock()
+    config.llm_provider = "anthropic"
+    config.llm_model = "claude-sonnet-4-6"
+    state: dict = {"trace_id": "t1"}
+
+    await prepare_challenger(
+        roster=roster,
+        framing_question="A question?",
+        paper_abstracts=["Abstract 1", "Abstract 2"],
+        tracker=tracker,
+        config=config,
+        state=state,
+        memory_block="",
+    )
+
+    call_kwargs = tracker.execute.call_args.kwargs
+    assert "model" in call_kwargs, "tracker.execute() must include model kwarg (BUG-008)"
+    assert call_kwargs["model"] == {"provider": "anthropic", "model_name": "claude-sonnet-4-6"}
