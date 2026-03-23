@@ -58,4 +58,24 @@ Add `model={"provider": config.llm_provider, "model_name": config.llm_model}` to
 - `tests/unit/test_paper_agent_preparation.py` — add assertion on model kwarg
 - `tests/unit/test_moderator_challenger_preparation.py` — add assertion on model kwarg
 
-**Fixed in commit:** (pending)
+**Fixed in commit:** 0c778a4
+
+**Resolution note (from PL team):**
+The SDK's `execute()` signature is `model: Optional[str]` — the intended interface is a plain
+string (the model name), not a dict. We pass a dict:
+```python
+model={"provider": config.llm_provider, "model_name": config.llm_model}
+```
+This works because Python doesn't enforce type hints and the dict passes through to the request
+body verbatim. It is undocumented behavior in the SDK — it relies on the raw API form, not
+the SDK's intended `Optional[str]` interface.
+
+The PL server was also patched to handle absent/string model gracefully. Both fixes are
+complementary: SRF always passes model explicitly (won't hit the bug even on old server code),
+and the PL server no longer 500s if model is absent or in string form.
+
+**Future cleanup:** Switch to the string form matching the SDK's intended interface:
+```python
+model=config.llm_model  # e.g., "claude-sonnet-4-6"
+```
+Not urgent — the dict form works and both layers of protection are now in place.
