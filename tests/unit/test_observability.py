@@ -161,7 +161,10 @@ async def test_register_prompts_converts_dicts_to_registration_payload() -> None
     mock_payload_instance = MagicMock()
     mock_payload_cls.return_value = mock_payload_instance
 
-    dict_prompt = {"name": "test.prompt", "template_source": "Hello {name}"}
+    # Include owner_team which is not in RegistrationPayload — must be stripped
+    dict_prompt = {"name": "test.prompt", "template_source": "Hello {name}", "owner_team": "SRF"}
+
+    mock_payload_cls.model_fields = {"name": ..., "template_source": ..., "description": ..., "mode": ...}
 
     mock_pl_module = MagicMock()
     mock_pl_module.RegistrationPayload = mock_payload_cls
@@ -169,5 +172,6 @@ async def test_register_prompts_converts_dicts_to_registration_payload() -> None
     with patch.dict(sys.modules, {"promptledger_client": mock_pl_module}):
         await register_prompts(tracker=mock_tracker, prompts=[dict_prompt])
 
-    mock_payload_cls.assert_called_once_with(**dict_prompt)
+    # owner_team must be stripped — only known fields passed
+    mock_payload_cls.assert_called_once_with(name="test.prompt", template_source="Hello {name}")
     mock_tracker.register_code_prompts.assert_awaited_once_with([mock_payload_instance])

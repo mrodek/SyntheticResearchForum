@@ -45,7 +45,12 @@ async def register_prompts(tracker: object | None, prompts: list) -> None:
 
     if any(isinstance(p, dict) for p in prompts):
         from promptledger_client import RegistrationPayload  # type: ignore[import]
-        converted = [RegistrationPayload(**p) if isinstance(p, dict) else p for p in prompts]
+        valid_fields = set(RegistrationPayload.model_fields.keys())
+        converted = [
+            RegistrationPayload(**{k: v for k, v in p.items() if k in valid_fields})
+            if isinstance(p, dict) else p
+            for p in prompts
+        ]
     else:
         converted = prompts
     await tracker.register_code_prompts(converted)
