@@ -21,7 +21,7 @@ Use this skill when a researcher provides a newsletter PDF, Markdown file, or UR
    /data/venv/bin/python /data/srf/scripts/parse_newsletter.py --file <source_path>
    ```
 
-3. Review the parsed output. The script will produce a JSON file in `/data/workspace/newsletters/` listing extracted paper candidates and a `CandidateForumConfig`.
+3. Review the parsed output. The script will produce one or more JSON files in `/data/workspace/candidates/{newsletter_slug}/` — one `candidate_N.json` per identified tension axis, each containing a `CandidateForumConfig`.
 
 4. Summarise the candidate papers and proposed framing question for the researcher.
 
@@ -43,6 +43,7 @@ Do not attempt to work around failures by modifying scripts, adding fallback log
 
 ## Notes
 
-- The script writes structured logs to stderr; stdout contains the output JSON path.
-- If `source_path` is a URL, the script will attempt to fetch and parse the remote content.
-- All paper candidates are deduplicated by arXiv ID before the config is generated.
+- The script writes structured logs to stderr; stdout contains the paths of the written candidate JSON files (one per line).
+- Candidates are written to `/data/workspace/candidates/{newsletter_slug}/candidate_N.json`.
+- All paper candidates are deduplicated by arXiv ID before configs are generated.
+- The script accepts only local file paths (`--file`). URLs are not supported.

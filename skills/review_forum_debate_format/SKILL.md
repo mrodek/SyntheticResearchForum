@@ -25,13 +25,15 @@ Use this skill when a researcher has reviewed the candidate forum configuration 
 
 3. Parse the trigger JSON from stdout.
 
-4. Use the lobster tool to launch the srf_forum workflow with the trigger JSON:
+4. Serialise the trigger JSON object to a JSON string (i.e. `JSON.stringify(triggerJson)` or `json.dumps(trigger_json)`).
+
+5. Use the lobster tool to launch the srf_forum workflow with the serialised trigger string:
 
    ```
-   {"action": "run", "pipeline": "workflows/srf_forum.yaml", "input": <trigger_json>}
+   {"action": "run", "pipeline": "/data/srf/workflows/srf_forum.yaml", "argsJson": "<serialised trigger JSON string>"}
    ```
 
-5. Confirm to the researcher that the forum debate pipeline has been launched. Provide the `forum_id` and note that they will be prompted for editorial approval when the debate completes.
+6. Confirm to the researcher that the forum debate pipeline has been launched. Provide the `forum_id` and note that they will be prompted for editorial approval when the debate completes.
 
 ## Error Handling
 
@@ -41,7 +43,7 @@ Use this skill when a researcher has reviewed the candidate forum configuration 
 |---|---|
 | Script in step 2 exits non-zero | Report the full stderr output to the researcher verbatim. Stop. Do not read other files to diagnose the cause. Do not edit any files. Do not retry. Tell the researcher to fix the underlying issue and re-invoke the skill. |
 | Script exits 0 but stdout is empty or not valid JSON | Report what was received (empty output, parse error). Stop. Do not attempt to construct or guess the trigger JSON. |
-| Lobster tool in step 4 returns an error | Report the lobster error response to the researcher verbatim. Stop. The forum workspace may have been created by step 2 — note the `workspace_path` so the researcher can inspect or clean up manually. |
+| Lobster tool in step 5 returns an error | Report the lobster error response to the researcher verbatim. Stop. The forum workspace may have been created by step 2 — note the `workspace_path` so the researcher can inspect or clean up manually. |
 
 ## Notes
 

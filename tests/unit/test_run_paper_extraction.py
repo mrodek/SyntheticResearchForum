@@ -142,8 +142,10 @@ def test_srf_forum_yaml_has_correct_steps() -> None:
     ws_step = next(s for s in data["steps"] if s["id"] == "workspace_setup")
     pe_step = next(s for s in data["steps"] if s["id"] == "paper_extraction")
 
-    assert ws_step["command"] == "python scripts/run_workspace_setup.py"
-    assert pe_step["command"] == "python scripts/run_paper_extraction.py"
+    assert "run_workspace_setup.py" in ws_step["command"]
+    assert "LOBSTER_ARGS_JSON" in ws_step["command"]
+    assert "run_paper_extraction.py" in pe_step["command"]
+    assert "/data/venv/bin/python" in pe_step["command"]
     assert pe_step["stdin"] == "$workspace_setup.json"
 
 

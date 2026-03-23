@@ -31,7 +31,8 @@
 | 6B.1 | Debate Context Document | GREEN | `scripts/prepare_debate_context.py` — 8 tests passing |
 | 6B.2 | Forum Debate Skill Documents | GREEN | SKILL.md + MODERATOR.md + PAPER_AGENT.md + CHALLENGER.md + GUARDRAIL.md — 12 tests passing |
 | 6B.3 | Transcript Validator | GREEN | `scripts/validate_transcript.py` — 7 tests passing |
-| 6B.4 | Bridge Script & Pipeline Integration | GREEN | `scripts/run_debate_bridge.py` + workflow wired — 6 tests passing |
+| 6B.4 | Bridge Script & Pipeline Integration | Complete | `scripts/run_debate_bridge.py` + workflow wired — 8 tests passing. BUG-004 fixed. |
+| BUG-004 | srf_forum.yaml invalid input ref + relative paths | Complete | 2026-03-22. `$trigger.json` → `$LOBSTER_ARGS_JSON`; absolute paths; SKILL.md argsJson fix. |
 
 ---
 

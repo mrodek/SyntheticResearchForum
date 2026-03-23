@@ -4,6 +4,38 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-22] - BUG-004: srf_forum.yaml invalid input reference and relative Python paths
+
+### Summary
+- BUG-004: `Requirements/bugs/BUG-004-workflow-lobster-input-and-paths.md` — new bug document
+- FIXED: `workflows/srf_forum.yaml` — `workspace_setup` command now pipes `$LOBSTER_ARGS_JSON` via shell; all Python step commands use absolute `/data/venv/bin/python` and `/data/srf/scripts/` paths
+- FIXED: `skills/review_forum_debate_format/SKILL.md` — Lobster invocation now uses `argsJson` (not invalid `input`) with absolute pipeline path `/data/srf/workflows/srf_forum.yaml`; serialisation instruction added
+- UPDATED: `tests/unit/test_run_debate_bridge.py` — 2 new tests (`test_srf_forum_yaml_workspace_setup_does_not_reference_trigger_step`, `test_srf_forum_yaml_python_steps_use_absolute_paths`)
+- UPDATED: `tests/unit/test_run_paper_extraction.py` — stale path assertions updated to verify absolute paths
+- UPDATED: `tests/unit/test_run_preparation.py` — stale path assertion updated to verify absolute paths
+- UPDATED: `tests/unit/test_runtime_deps.py` — `test_railway_toml_has_start_command_with_lobster_install` renamed and corrected; Lobster is installed via bootstrap.sh on persistent volume, not in railway.toml startCommand
+- Test suite: 213 passed, 5 skipped, 0 failures
+
+### Decisions
+- **Lobster initial input via `$LOBSTER_ARGS_JSON`**: Lobster has no `$trigger` step concept. Initial workflow data is passed at invocation via `argsJson` and accessed inside steps as the `$LOBSTER_ARGS_JSON` env var. First step uses `echo "$LOBSTER_ARGS_JSON" | python ...` shell pipe.
+- **Absolute paths required**: Lobster's cwd defaults to the OpenClaw gateway working directory (not `/data/srf`). All Python steps must use `/data/venv/bin/python` and `/data/srf/scripts/` absolute paths.
+- **Lobster installed via bootstrap.sh**: Railway container filesystem resets on redeploy; `/data` volume persists. Lobster source cloned to `/data/lobster` and wrapper at `/usr/local/bin/lobster` recreated each startup by bootstrap.sh.
+- **`argsJson` not `input`**: The Lobster plugin tool schema parameter is `argsJson` (a JSON-serialised string). `input` does not exist.
+
+### Issues & Resolution
+- Tests in `test_run_paper_extraction.py` and `test_run_preparation.py` were asserting the old buggy relative path commands — updated to verify absolute paths instead.
+- `test_railway_toml_has_start_command_with_lobster_install` was written for a path not taken (installing Lobster via railway.toml startCommand). Corrected to reflect bootstrap.sh approach.
+
+### Lessons Learned
+- When a bug fix changes the canonical form of a value (e.g. relative → absolute path), existing tests that assert the old form must be updated as part of the same fix.
+
+### Next Steps
+- [ ] Redeploy Railway to pick up BUG-003 fix (double-brace CLUSTERING_PROMPT) and updated skills (bootstrap.sh already updated on volume)
+- [ ] Verify Lobster binary functional after next Railway startup
+- [ ] Begin Epic 7: Synthesis, Evaluation & Post-Debate Processing
+
+---
+
 ## [2026-03-21] - Governance: Skill Error Handling Rule
 
 ### Summary

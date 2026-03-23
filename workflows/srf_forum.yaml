@@ -4,14 +4,15 @@ version: "1.0"
 steps:
 
   # ── Phase 4: Workspace Generation ──────────────────────────────────────────
+  # Initial input arrives via $LOBSTER_ARGS_JSON (passed as argsJson at invocation).
+  # The trigger JSON contains: forum_id, workspace_path, trace_id, config_path.
   - id: workspace_setup
-    command: python scripts/run_workspace_setup.py
-    stdin: $trigger.json
+    command: /bin/sh -c 'echo "$LOBSTER_ARGS_JSON" | /data/venv/bin/python /data/srf/scripts/run_workspace_setup.py'
     # Output: { forum_id, workspace_path, paper_refs, framing_question, topic, trace_id }
 
   # ── Phase 5: Paper Extraction ───────────────────────────────────────────────
   - id: paper_extraction
-    command: python scripts/run_paper_extraction.py
+    command: /data/venv/bin/python /data/srf/scripts/run_paper_extraction.py
     stdin: $workspace_setup.json
     # Output: { ...prev, papers: [{ arxiv_id, abstract, full_text, extraction_status }] }
 
@@ -19,7 +20,7 @@ steps:
   # Single script runs all Paper Agent preparations concurrently via asyncio.gather().
   # Partial failure: retry SRF_MAX_PREP_RETRIES per agent; abort if < SRF_MIN_AGENTS succeed.
   - id: agent_preparation
-    command: python scripts/run_preparation.py
+    command: /data/venv/bin/python /data/srf/scripts/run_preparation.py
     stdin: $paper_extraction.json
     # Output: { ...prev, agents: [{ agent_id, role, status, prep_artifact_path }] }
 
@@ -28,7 +29,7 @@ steps:
   # triggers run_forum_debate OpenClaw skill, polls for DEBATE_CLOSED sentinel,
   # validates transcript, and emits transcript metadata to stdout.
   - id: debate
-    command: python scripts/run_debate_bridge.py
+    command: /data/venv/bin/python /data/srf/scripts/run_debate_bridge.py
     stdin: $agent_preparation.json
     # Output: { ...prev, transcript_path, turn_count, debate_status, close_reason }
 

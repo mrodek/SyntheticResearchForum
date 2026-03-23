@@ -108,17 +108,18 @@ Newsletter (Markdown)
 | Epic | Description | Status |
 |---|---|---|
 | 1 | Foundation — scaffold, config, logging, observability | ✅ Complete |
-| 1.1 | Runtime infrastructure — OpenClaw, Lobster, Railway | ⚠️ Nearly complete (Story 1.1.5 CI pipeline pending) |
+| 1.1 | Runtime infrastructure — OpenClaw, Lobster, Railway | ✅ Complete |
 | 3 | Newsletter parsing & forum config generation | ✅ Complete |
 | 4 | Workspace management & paper extraction | ✅ Complete |
 | 5 | Agent preparation phase | ✅ Complete |
-| 6 | Debate engine: core discussion loop | 🔲 Next |
-| 7 | Synthesis, evaluation & post-debate processing | 🔲 Planned |
+| 6B | Debate engine — OpenClaw native (skill + bridge) | ✅ Complete |
+| 7 | Synthesis, evaluation & post-debate processing | 🔲 Next |
 | 8 | Editorial review, policy proposals & publication | 🔲 Planned |
+| 11 | PromptLedger proxy — per-turn debate telemetry | 🔲 Planned |
 | 9 | Observability, cost reporting & reliability | 🔲 Planned |
 | 2 | Agent memory (role-scoped, editorially gated) | 🔲 After first complete run |
 
-**Current test suite:** 165 unit tests, 4 skipped (Windows chmod), 0 failures.
+**Current test suite:** 210 unit tests, 5 skipped (Windows chmod + missing optional deps), 0 failures.
 
 ---
 
@@ -154,33 +155,115 @@ See `Requirements/Railway/RAILWAY_SETUP_GUIDE.md` for the full step-by-step guid
 
 ### Running the pipeline
 
-Via the OpenClaw Chat (`/openclaw`), ask the agent to use the exec tool:
+All pipeline interactions happen via the OpenClaw Chat (`/openclaw`). The pipeline has two entry points: a human-triggered newsletter parse, and the full automated Lobster workflow.
+
+#### Step 1 — Initialise the service
+
+On first startup (or after a redeploy), confirm the service is ready:
 
 ```bash
-# Parse a sample newsletter
-/data/venv/bin/python /data/srf/scripts/parse_newsletter.py \
-  --source-path /data/srf/.newsletter/<newsletter-file>.md \
-  --output-dir /data/workspace/newsletters
-
-# Then stage and run the full Lobster pipeline via the review_forum_debate_format skill
+# Via OpenClaw exec tool:
+/data/venv/bin/python /data/srf/scripts/srf_init.py
 ```
 
+This validates the environment, initialises the workspace directory structure, and registers all prompts with PromptLedger.
+
+#### Step 2 — Parse a newsletter
+
+Drop a newsletter Markdown file into `/data/srf/.newsletter/` on the volume (via OpenClaw's file tools or exec), then parse it:
+
+```bash
+# Via OpenClaw exec tool:
+/data/venv/bin/python /data/srf/scripts/parse_newsletter.py \
+  --file /data/srf/.newsletter/<newsletter-file>.md \
+  --output-dir /data/workspace/newsletters
+```
+
+This produces candidate forum configs in `/data/workspace/newsletters/`. One config is selected per newsletter, pending editorial approval.
+
+#### Step 3 — Stage and approve the forum
+
+Use the `review_forum_debate_format` skill in OpenClaw Chat:
+
+```
+/review_forum_debate_format
+```
+
+The skill presents the candidate config for editorial review. On approval it stages the forum and invokes the Lobster pipeline. On rejection it writes the decision and stops.
+
+#### Step 4 — Lobster pipeline (automated)
+
+Once staged, Lobster executes the remaining phases automatically. Each phase is a Python script invoked by Lobster's exec tool:
+
+| Phase | Script | Output |
+|---|---|---|
+| Workspace setup | `run_workspace_setup.py` | `/data/workspace/forum/{forum_id}/` directory structure |
+| Paper extraction | `run_paper_extraction.py` | Full paper text in `preparation/papers/` |
+| Agent preparation | `run_preparation.py` | Per-agent `preparation/{agent_id}/artifact.json` |
+| Debate bridge | `run_debate_bridge.py` | Triggers OpenClaw debate skill; polls for `DEBATE_CLOSED` sentinel |
+| Synthesis & evaluation | *(Epic 7 — not yet implemented)* | `synthesis.json`, `evaluation.json` |
+| Publication | *(Epic 8 — not yet implemented)* | `canonical_artifact.json`, `transcript.md` |
+
+#### Step 5 — Monitor the debate
+
+While the debate is running, the transcript appends to:
+
+```
+/data/workspace/forum/{forum_id}/transcripts/transcript.jsonl
+```
+
+Read it live via the OpenClaw exec tool:
+
+```bash
+tail -f /data/workspace/forum/{forum_id}/transcripts/transcript.jsonl
+```
+
+The debate closes when the Moderator writes a `DEBATE_CLOSED` sentinel line. The bridge script validates the transcript and writes its output JSON to Lobster for the next phase.
+
+#### Step 6 — Editorial review (post-debate)
+
+Once synthesis and evaluation are complete (Epic 7), the `approve_editorial_review` skill presents the evaluation scorecard for editorial review before publication.
+
+---
+
 ### Environment variables
+
+**OpenClaw Gateway (set via Railway Variables or `/setup` wizard):**
 
 | Variable | Required | Description |
 |---|---|---|
 | `SETUP_PASSWORD` | Yes | Protects `/setup` and `/openclaw` |
 | `PORT` | Yes | Must be `8080` |
+| `OPENCLAW_STATE_DIR` | Yes | `/data/.openclaw` |
+| `OPENCLAW_WORKSPACE_DIR` | Yes | `/data/workspace` — SRF workspace root |
+| `OPENCLAW_GATEWAY_TOKEN` | Recommended | Secures MCP + webhook endpoints |
+| `OPENCLAW_GATEWAY_URL` | Yes | Base URL of this service (e.g. `https://<service>.up.railway.app`) |
+
+**SRF Python runtime (set via Railway Variables):**
+
+| Variable | Required | Description |
+|---|---|---|
 | `SRF_LLM_PROVIDER` | Yes | `anthropic` or `openai` |
 | `SRF_LLM_MODEL` | Yes | e.g. `claude-haiku-4-5-20251001` for testing, `claude-sonnet-4-6` for production |
 | `SRF_LLM_API_KEY` | Yes | Provider API key |
-| `OPENCLAW_STATE_DIR` | Yes | `/data/.openclaw` |
-| `OPENCLAW_WORKSPACE_DIR` | Yes | `/data/workspace` |
-| `OPENCLAW_GATEWAY_TOKEN` | Recommended | Secures MCP endpoints |
 | `PROMPTLEDGER_API_URL` | Optional | Enables observability (both vars or neither) |
 | `PROMPTLEDGER_API_KEY` | Optional | Project-scoped PromptLedger key |
 
-See `.env.example` for the full list including runtime tuning variables.
+**Debate tuning (optional — all have defaults):**
+
+| Variable | Default | Description |
+|---|---|---|
+| `SRF_MAX_TOTAL_TURNS` | `30` | Hard cap on total debate turns |
+| `SRF_MAX_TURNS_PER_AGENT` | `8` | Max turns any single agent may take |
+| `SRF_MAX_ROUNDS` | `4` | Max complete discussion rounds |
+| `SRF_DEBATE_POLL_TIMEOUT` | `600` | Seconds to wait for `DEBATE_CLOSED` before failing |
+| `SRF_DEBATE_POLL_INTERVAL` | `10` | Seconds between transcript poll attempts |
+| `SRF_MAX_PREP_RETRIES` | `3` | Retry attempts for failed agent preparation |
+| `SRF_MIN_AGENTS` | `2` | Minimum viable Paper Agents required to run |
+| `SRF_MIN_PAPERS` | `2` | Minimum successfully extracted papers required |
+| `SRF_ARXIV_DELAY_SECONDS` | `3` | Rate-limit delay between arXiv fetches |
+
+See `.env.example` for the full list.
 
 ---
 
@@ -199,14 +282,29 @@ src/srf/
   agents/            — roster, preparation, orchestrator
 
 scripts/
-  srf_init.py              — startup: validate env, init workspace, register prompts
-  run_workspace_setup.py   — Lobster step: create forum workspace
-  run_paper_extraction.py  — Lobster step: fetch + extract papers
-  run_preparation.py       — Lobster step: parallel agent preparation
-  validate_prompts.py      — CI: assert no unregistered prompt changes
+  srf_init.py                — startup: validate env, init workspace, register prompts
+  parse_newsletter.py        — CLI: parse newsletter → candidate forum configs
+  run_workspace_setup.py     — Lobster step: create forum workspace
+  run_paper_extraction.py    — Lobster step: fetch + extract papers
+  run_preparation.py         — Lobster step: parallel agent preparation
+  prepare_debate_context.py  — Lobster step: build debate_context.json from state + artifacts
+  run_debate_bridge.py       — Lobster step: trigger OpenClaw debate, poll sentinel, validate
+  validate_transcript.py     — validate JSONL transcript; returns TranscriptSummary
+  validate_prompts.py        — CI: assert no unregistered prompt changes
 
 workflows/
-  srf_forum.yaml     — Lobster workflow definition (15-phase skeleton)
+  srf_forum.yaml     — Lobster workflow definition (15-phase lifecycle)
+
+skills/
+  trigger_newsletter_forum/    — skill: parse newsletter + generate forum configs
+  review_forum_debate_format/  — skill: editorial approval gate before debate
+  approve_editorial_review/    — skill: editorial review gate after synthesis
+  run_forum_debate/            — skill: OpenClaw-native multi-agent debate engine
+    SKILL.md       — orchestration spec (phases, turn protocol, limits, error handling)
+    MODERATOR.md   — Moderator role document
+    PAPER_AGENT.md — Paper Agent role document
+    CHALLENGER.md  — Challenger role document
+    GUARDRAIL.md   — Guardrail evaluator role document
 
 tests/
   unit/              — fast, offline, tracker=None

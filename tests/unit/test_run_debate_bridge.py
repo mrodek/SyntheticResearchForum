@@ -251,3 +251,50 @@ def test_workflow_debate_step_uses_bridge_script() -> None:
     debate_step = next(s for s in data["steps"] if s["id"] == "debate")
     assert "run_debate_bridge.py" in debate_step["command"]
     assert debate_step.get("stdin") == "$agent_preparation.json"
+
+
+# ---------------------------------------------------------------------------
+# BUG-004: workspace_setup must not reference non-existent $trigger step
+# ---------------------------------------------------------------------------
+
+
+def test_srf_forum_yaml_workspace_setup_does_not_reference_trigger_step() -> None:
+    """workspace_setup must use $LOBSTER_ARGS_JSON, not a non-existent $trigger step.
+
+    BUG-004: stdin: $trigger.json references a step that doesn't exist.
+    Initial workflow input must be accessed via $LOBSTER_ARGS_JSON env var.
+    """
+    workflow_path = Path("workflows/srf_forum.yaml")
+    data = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    ws_step = next(s for s in data["steps"] if s["id"] == "workspace_setup")
+    assert ws_step.get("stdin") != "$trigger.json", (
+        "workspace_setup must not reference non-existent $trigger step via stdin"
+    )
+    cmd = ws_step.get("command", "") or ws_step.get("run", "")
+    assert "LOBSTER_ARGS_JSON" in cmd, (
+        "workspace_setup command must pipe $LOBSTER_ARGS_JSON to the script"
+    )
+
+
+# ---------------------------------------------------------------------------
+# BUG-004: all Python steps must use absolute paths
+# ---------------------------------------------------------------------------
+
+
+def test_srf_forum_yaml_python_steps_use_absolute_paths() -> None:
+    """Steps calling Python scripts must use /data/venv/bin/python and /data/srf/scripts/.
+
+    BUG-004: bare 'python scripts/...' fails because Lobster cwd is the OpenClaw
+    gateway working directory, not /data/srf, and system python is not the venv.
+    """
+    workflow_path = Path("workflows/srf_forum.yaml")
+    data = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    for step in data["steps"]:
+        cmd = step.get("command", "") or step.get("run", "")
+        if "python" in cmd and "placeholder" not in cmd:
+            assert "/data/venv/bin/python" in cmd, (
+                f"Step '{step['id']}' must use /data/venv/bin/python, got: {cmd}"
+            )
+            assert "/data/srf/scripts/" in cmd, (
+                f"Step '{step['id']}' must use /data/srf/scripts/ absolute path, got: {cmd}"
+            )

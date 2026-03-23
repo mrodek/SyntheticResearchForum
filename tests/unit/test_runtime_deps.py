@@ -51,12 +51,15 @@ def test_railway_toml_exists_and_declares_port() -> None:
     )
 
 
-def test_railway_toml_has_start_command_with_lobster_install() -> None:
+def test_railway_toml_has_openclaw_start_command() -> None:
+    """railway.toml startCommand runs openclaw.
+
+    Lobster is installed by bootstrap.sh on the persistent /data volume,
+    not in the Railway startCommand (container filesystem resets on redeploy;
+    /data volume persists).
+    """
     data = tomllib.loads(Path("railway.toml").read_text(encoding="utf-8"))
     start_cmd = data.get("deploy", {}).get("startCommand", "")
-    assert "@clawdbot/lobster" in start_cmd, (
-        "startCommand must install @clawdbot/lobster before starting OpenClaw"
-    )
     assert "openclaw" in start_cmd, (
         "startCommand must invoke openclaw to start the gateway"
     )
