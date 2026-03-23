@@ -38,8 +38,14 @@ async def register_prompts(tracker: object | None, prompts: list) -> None:
     """Register code prompts with PromptLedger.
 
     No-op when tracker is None. Pass tracker=None in all unit tests.
+    Converts dict entries to RegistrationPayload instances as required by the client.
     """
     if tracker is None:
         return
 
-    await tracker.register_code_prompts(prompts)
+    if any(isinstance(p, dict) for p in prompts):
+        from promptledger_client import RegistrationPayload  # type: ignore[import]
+        converted = [RegistrationPayload(**p) if isinstance(p, dict) else p for p in prompts]
+    else:
+        converted = prompts
+    await tracker.register_code_prompts(converted)

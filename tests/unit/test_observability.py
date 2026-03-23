@@ -134,3 +134,40 @@ async def test_register_prompts_calls_tracker() -> None:
     await register_prompts(tracker=mock_tracker, prompts=payloads)
 
     mock_tracker.register_code_prompts.assert_awaited_once_with(payloads)
+
+
+# ---------------------------------------------------------------------------
+# BUG-006: register_prompts must convert dicts to RegistrationPayload instances
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_register_prompts_converts_dicts_to_registration_payload() -> None:
+    """register_prompts must wrap dict prompts in RegistrationPayload before passing
+    to register_code_prompts.
+
+    BUG-006: ALL_PROMPTS is list[dict] but register_code_prompts calls .model_dump()
+    on each item, which fails with AttributeError on plain dicts.
+    """
+    import sys
+    from unittest.mock import patch
+
+    from srf.observability import register_prompts
+
+    mock_tracker = AsyncMock()
+    mock_tracker.register_code_prompts = AsyncMock()
+
+    mock_payload_cls = MagicMock()
+    mock_payload_instance = MagicMock()
+    mock_payload_cls.return_value = mock_payload_instance
+
+    dict_prompt = {"name": "test.prompt", "template_source": "Hello {name}"}
+
+    mock_pl_module = MagicMock()
+    mock_pl_module.RegistrationPayload = mock_payload_cls
+
+    with patch.dict(sys.modules, {"promptledger_client": mock_pl_module}):
+        await register_prompts(tracker=mock_tracker, prompts=[dict_prompt])
+
+    mock_payload_cls.assert_called_once_with(**dict_prompt)
+    mock_tracker.register_code_prompts.assert_awaited_once_with([mock_payload_instance])
