@@ -103,3 +103,30 @@ def test_run_workspace_setup_writes_state_json(
     assert state_path.exists()
     state = json.loads(state_path.read_text())
     assert state["forum_status"] == "workspace_ready"
+
+
+# ---------------------------------------------------------------------------
+# BUG-007: output must include created_at for ForumWorkspace.from_dict()
+# ---------------------------------------------------------------------------
+
+
+def test_run_workspace_setup_output_includes_created_at(
+    tmp_path: Path,
+    candidate_config_file: Path,
+) -> None:
+    """run_workspace_setup.py must emit created_at in its stdout JSON.
+
+    BUG-007: ForumWorkspace.from_dict() does data['created_at'] which KeyErrors
+    because run_workspace_setup.py never includes created_at in its output.
+    """
+    result = _run(
+        {"config_path": str(candidate_config_file)},
+        extra_env={**_BASE_ENV, "SRF_WORKSPACE_ROOT": str(tmp_path)},
+    )
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)
+    assert "created_at" in output, "output must include created_at (ISO-8601)"
+    # Verify it looks like an ISO timestamp
+    assert "T" in output["created_at"] or "Z" in output["created_at"], (
+        f"created_at must be ISO-8601, got: {output['created_at']}"
+    )

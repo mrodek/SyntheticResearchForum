@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import sys
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -84,6 +85,7 @@ def main() -> int:
         "framing_question": workspace.framing_question,
         "trace_id": trace_id,
         "forum_status": "workspace_ready",
+        "created_at": datetime.now(tz=timezone.utc).isoformat(),
     }
 
     print(json.dumps(output))
