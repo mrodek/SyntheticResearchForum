@@ -293,7 +293,7 @@ scripts/
   validate_prompts.py        — CI: assert no unregistered prompt changes
 
 workflows/
-  srf_forum.yaml     — Lobster workflow definition (15-phase lifecycle)
+  srf_forum.lobster  — Lobster workflow definition (15-phase lifecycle)
 
 skills/
   trigger_newsletter_forum/    — skill: parse newsletter + generate forum configs

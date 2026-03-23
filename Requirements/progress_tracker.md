@@ -4,6 +4,30 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-23] - BUG-005: srf_forum.yaml wrong file extension and invalid approval syntax
+
+### Summary
+- BUG-005: `Requirements/bugs/BUG-005-workflow-wrong-extension-and-approval-syntax.md` — new bug document
+- RENAMED: `workflows/srf_forum.yaml` → `workflows/srf_forum.lobster` — Lobster requires `.lobster` extension
+- FIXED: `editorial_review_gate` approval value: `required` → human-readable prompt string
+- FIXED: `skills/review_forum_debate_format/SKILL.md` pipeline path updated to `srf_forum.lobster`
+- UPDATED: `tests/unit/test_run_debate_bridge.py` — 3 new BUG-005 tests; existing tests updated to `.lobster`
+- UPDATED: `tests/unit/test_run_paper_extraction.py`, `test_run_preparation.py` — path updated to `.lobster`
+- Test suite: 216 passed, 5 skipped, 0 failures
+
+### Decisions
+- **`.lobster` is the required extension**: Lobster README explicitly shows `lobster run path/to/workflow.lobster`. YAML content inside is unchanged — `yaml.safe_load()` still parses it correctly.
+- **`approval:` takes a prompt string**: The value is displayed to the human reviewer at the gate. `required` is not a valid string in this context.
+
+### Issues & Resolution
+- Discovered during live Railway session: OpenClaw agent found `lobster run --file path/to/workflow.lobster` in the Lobster help and began exploring the CLI, confirming our `.yaml` file would not be found.
+
+### Next Steps
+- [ ] Push to GitHub and redeploy Railway
+- [ ] Re-run the staged forum (forum-20260323-03ede4e5) by directly invoking the lobster tool with the known trigger JSON
+
+---
+
 ## [2026-03-22] - BUG-004: srf_forum.yaml invalid input reference and relative Python paths
 
 ### Summary

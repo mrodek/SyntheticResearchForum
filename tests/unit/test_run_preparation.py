@@ -111,11 +111,11 @@ async def test_run_preparation_exits_0_with_summary(
 def test_srf_forum_yaml_agent_preparation_step_wired() -> None:
     import yaml
 
-    yaml_path = Path("workflows/srf_forum.yaml")
+    yaml_path = Path("workflows/srf_forum.lobster")
     data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
 
     step = next((s for s in data["steps"] if s["id"] == "agent_preparation"), None)
-    assert step is not None, "agent_preparation step not found in srf_forum.yaml"
+    assert step is not None, "agent_preparation step not found in srf_forum.lobster"
     assert "run_preparation.py" in step["command"]
     assert "/data/venv/bin/python" in step["command"]
     assert step["stdin"] == "$paper_extraction.json"

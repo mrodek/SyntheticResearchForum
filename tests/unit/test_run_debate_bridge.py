@@ -241,12 +241,12 @@ def test_bridge_sends_authorization_header(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Scenario: srf_forum.yaml debate step uses run_debate_bridge.py
+# Scenario: srf_forum.lobster debate step uses run_debate_bridge.py
 # ---------------------------------------------------------------------------
 
 
 def test_workflow_debate_step_uses_bridge_script() -> None:
-    workflow_path = Path("workflows/srf_forum.yaml")
+    workflow_path = Path("workflows/srf_forum.lobster")
     data = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
     debate_step = next(s for s in data["steps"] if s["id"] == "debate")
     assert "run_debate_bridge.py" in debate_step["command"]
@@ -264,7 +264,7 @@ def test_srf_forum_yaml_workspace_setup_does_not_reference_trigger_step() -> Non
     BUG-004: stdin: $trigger.json references a step that doesn't exist.
     Initial workflow input must be accessed via $LOBSTER_ARGS_JSON env var.
     """
-    workflow_path = Path("workflows/srf_forum.yaml")
+    workflow_path = Path("workflows/srf_forum.lobster")
     data = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
     ws_step = next(s for s in data["steps"] if s["id"] == "workspace_setup")
     assert ws_step.get("stdin") != "$trigger.json", (
@@ -287,7 +287,7 @@ def test_srf_forum_yaml_python_steps_use_absolute_paths() -> None:
     BUG-004: bare 'python scripts/...' fails because Lobster cwd is the OpenClaw
     gateway working directory, not /data/srf, and system python is not the venv.
     """
-    workflow_path = Path("workflows/srf_forum.yaml")
+    workflow_path = Path("workflows/srf_forum.lobster")
     data = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
     for step in data["steps"]:
         cmd = step.get("command", "") or step.get("run", "")
@@ -298,3 +298,71 @@ def test_srf_forum_yaml_python_steps_use_absolute_paths() -> None:
             assert "/data/srf/scripts/" in cmd, (
                 f"Step '{step['id']}' must use /data/srf/scripts/ absolute path, got: {cmd}"
             )
+
+
+# ---------------------------------------------------------------------------
+# BUG-005: workflow file must use .lobster extension
+# ---------------------------------------------------------------------------
+
+
+def test_srf_forum_workflow_file_has_lobster_extension() -> None:
+    """Lobster workflow files must use the .lobster extension.
+
+    BUG-005: srf_forum.yaml is not recognised by the Lobster CLI/plugin.
+    The README states: lobster run path/to/workflow.lobster
+    """
+    assert Path("workflows/srf_forum.lobster").exists(), (
+        "workflows/srf_forum.lobster must exist — Lobster requires .lobster extension"
+    )
+    assert not Path("workflows/srf_forum.yaml").exists(), (
+        "workflows/srf_forum.yaml must be removed — rename to srf_forum.lobster"
+    )
+
+
+# ---------------------------------------------------------------------------
+# BUG-005: approval step must have a human-readable string message
+# ---------------------------------------------------------------------------
+
+
+def test_srf_forum_approval_step_has_string_message() -> None:
+    """The approval: field value must be a human-readable prompt string.
+
+    BUG-005: approval: required is not valid Lobster syntax.
+    The Lobster README shows: approval: Want jacket advice from the LLM?
+    """
+    workflow_path = Path("workflows/srf_forum.lobster")
+    data = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    approval_step = next(
+        (s for s in data["steps"] if s.get("approval") is not None), None
+    )
+    assert approval_step is not None, "No approval step found in workflow"
+    approval_value = approval_step["approval"]
+    assert isinstance(approval_value, str), (
+        f"approval: must be a string message, got {type(approval_value)}"
+    )
+    assert approval_value.lower() != "required", (
+        "approval: 'required' is not valid — must be a human-readable prompt string"
+    )
+    assert len(approval_value) > 5, (
+        "approval: message must be a meaningful prompt string"
+    )
+
+
+# ---------------------------------------------------------------------------
+# BUG-005: review_forum_debate_format SKILL.md must reference .lobster file
+# ---------------------------------------------------------------------------
+
+
+def test_review_forum_skill_references_lobster_file() -> None:
+    """SKILL.md pipeline path must reference srf_forum.lobster, not srf_forum.yaml.
+
+    BUG-005: .yaml extension is not recognised by Lobster.
+    """
+    skill_path = Path("skills/review_forum_debate_format/SKILL.md")
+    content = skill_path.read_text(encoding="utf-8")
+    assert "srf_forum.lobster" in content, (
+        "SKILL.md must reference srf_forum.lobster in the lobster tool invocation"
+    )
+    assert "srf_forum.yaml" not in content, (
+        "SKILL.md must not reference srf_forum.yaml — file has been renamed"
+    )

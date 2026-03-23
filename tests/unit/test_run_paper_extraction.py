@@ -131,7 +131,7 @@ async def test_run_paper_extraction_raises_when_too_few_papers(
 def test_srf_forum_yaml_has_correct_steps() -> None:
     import yaml
 
-    yaml_path = Path("workflows/srf_forum.yaml")
+    yaml_path = Path("workflows/srf_forum.lobster")
     data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
 
     step_ids = [s["id"] for s in data["steps"]]

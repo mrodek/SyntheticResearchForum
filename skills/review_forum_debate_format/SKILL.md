@@ -30,7 +30,7 @@ Use this skill when a researcher has reviewed the candidate forum configuration 
 5. Use the lobster tool to launch the srf_forum workflow with the serialised trigger string:
 
    ```
-   {"action": "run", "pipeline": "/data/srf/workflows/srf_forum.yaml", "argsJson": "<serialised trigger JSON string>"}
+   {"action": "run", "pipeline": "/data/srf/workflows/srf_forum.lobster", "argsJson": "<serialised trigger JSON string>"}
    ```
 
 6. Confirm to the researcher that the forum debate pipeline has been launched. Provide the `forum_id` and note that they will be prompted for editorial approval when the debate completes.

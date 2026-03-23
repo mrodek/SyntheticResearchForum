@@ -49,7 +49,7 @@ steps:
   # Lobster halts here and returns a resumeToken.
   # Resumed by the approve_editorial_review OpenClaw skill via the lobster resume action.
   - id: editorial_review_gate
-    approval: required
+    approval: "Review synthesis and evaluation scores. Approve to proceed to publication?"
 
   # ── Phase 14: Policy Proposals ──────────────────────────────────────────────
   - id: policy_proposals
