@@ -4,6 +4,56 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-24] - Story 1.1.6: update_srf skill and script
+
+### Summary
+- Epic 1.1, Story 1.1.6 — fast SRF code update without full Railway redeploy
+- NEW: `scripts/update_srf.sh` — unlock/pull/pip/relock with trap-based relock on failure
+- NEW: `skills/update_srf/SKILL.md` — exec-only skill, error handling, /data/srf edit prohibition
+- NEW: `tests/unit/test_update_srf.py` — 11 tests; 5 pass on Windows, 6 bash-execution tests skip (run on Linux CI)
+- MODIFY: `Requirements/Railway/RAILWAY_SETUP_GUIDE.md` — Option A/B/C protection table, restart procedures, promptledger extra, Step 11 (update_srf)
+- MODIFY: `Requirements/srf_epic_01_1_runtime_infrastructure.md` — Story 1.1.6 added
+
+### Decisions
+- Option B (filesystem lock) chosen for /data/srf protection: `chmod -R a-w` after every pull, unlock before. Defence in depth alongside skill document instructions.
+- Script is the logic; skill is only the routing layer. Avoids probabilistic execution of a deterministic procedure.
+- pip install includes `[anthropic,openai,promptledger]` — promptledger extra was previously missing from bootstrap.sh.
+- Bash-execution tests marked `@_BASH_TESTS` (skip on win32) — they exercise the relock-on-failure guarantee which requires a real bash environment.
+
+### Issues & Resolution
+- `openclaw start` identified as the correct Railway Start Command (was previously undiscovered). Documented in RAILWAY_SETUP_GUIDE.md with full "what not to do" list from troubleshooting session.
+- `openclaw gateway --foreground` is not a valid flag. `openclaw gateway` only starts WebSocket server, not HTTP stack.
+- Dockerfile ENTRYPOINT crashes with `chown: invalid user: 'openclaw:openclaw'` when Start Command is cleared — must always be set to `openclaw start`.
+
+### Next Steps
+- [ ] Confirm Railway service starts cleanly with `openclaw start`
+- [ ] Verify bootstrap.sh runs on new service and /data/srf is locked after startup
+- [ ] Run update_srf skill end-to-end on Railway to confirm relock cycle works
+
+---
+
+## [2026-03-23] - BUG-008: tracker.execute() missing model field causes PL 500
+
+### Summary
+- BUG-008: `Requirements/bugs/BUG-008-tracker-execute-missing-model-field.md` — new bug document
+- FIXED: `src/srf/agents/preparation.py` — added `model={"provider": config.llm_provider, "model_name": config.llm_model}` to all three `tracker.execute()` calls (prepare_paper_agent, prepare_moderator, prepare_challenger)
+- TESTS: 3 new tests in `test_paper_agent_preparation.py` and `test_moderator_challenger_preparation.py`
+- Test suite: 221 passed, 5 skipped, 0 failures
+
+### Decisions
+- Passed `model` as a kwarg to `execute()` at each call site rather than configuring it at constructor time. `config` is already available at all three call sites (used for tracker=None fallback path).
+- Model dict shape `{"provider": "...", "model_name": "..."}` matches the `/v1/executions/run` API schema from CR-001.
+
+### Issues & Resolution
+- Root cause: PL server's `execution.py:240` does `request_body['model']` — crashes with `KeyError: 'model'` when field absent.
+- The PL SDK's `execute()` reference docs don't document a `model` parameter, but the underlying API requires it. Passing as kwarg resolves the 500.
+
+### Next Steps
+- [ ] Redeploy Railway (bootstrap.sh will git reset --hard to pick up fix)
+- [ ] Re-run srf_init.py, then re-run the Lobster pipeline for the staged forum
+
+---
+
 ## [2026-03-23] - BUG-005: srf_forum.yaml wrong file extension and invalid approval syntax
 
 ### Summary

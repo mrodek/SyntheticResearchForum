@@ -416,6 +416,80 @@ in the file. The workflow YAML test uses `yaml.safe_load` to navigate the steps 
 
 ---
 
+### Story 1.1.6 — update_srf Skill and Script
+
+**As a** developer,
+**I would like** an OpenClaw skill that updates the SRF codebase on the Railway volume without a full redeploy,
+**so that** Python code changes can be live in ~15 seconds rather than waiting 5–10 minutes for an OpenClaw rebuild.
+
+**Context:**
+
+Full Railway redeployments rebuild OpenClaw from source — slow and unnecessary for SRF Python code changes. This skill calls a shell script that does the unlock/pull/pip/relock cycle deterministically. The script is the logic; the skill is just the routing layer that calls it and reports the result.
+
+`/data/srf/` is kept read-only at runtime (Option B protection — see `RAILWAY_SETUP_GUIDE.md`). The script must unlock before the pull and relock after, including on failure. This must not be left to OpenClaw's judgment — it is encoded in the script.
+
+**Files:**
+- NEW: `scripts/update_srf.sh`
+- NEW: `skills/update_srf/SKILL.md`
+- NEW: `tests/unit/test_update_srf.py`
+
+**Acceptance Criteria:**
+
+```gherkin
+Scenario: update_srf.sh unlocks /data/srf, pulls, reinstalls, and relocks on success
+  Given /data/srf is a valid git repo with read-only permissions
+  And   the remote has no new commits
+  When  update_srf.sh is run
+  Then  it exits with code 0
+  And   /data/srf is read-only after the script completes
+  And   the update log at /data/workspace/logs/update_srf.log contains a SUCCESS entry
+  And   stdout contains the current git SHA
+
+Scenario: update_srf.sh relocks /data/srf even when git pull fails
+  Given /data/srf is a valid git repo with read-only permissions
+  And   git pull will fail (e.g. network unavailable or non-fast-forward)
+  When  update_srf.sh is run
+  Then  it exits with a non-zero code
+  And   /data/srf is read-only after the script completes
+  And   stderr contains the git error output
+  And   the update log contains a FAILED entry with the error
+
+Scenario: update_srf.sh relocks /data/srf even when pip install fails
+  Given /data/srf is a valid git repo and pull succeeds
+  And   pip install will fail
+  When  update_srf.sh is run
+  Then  it exits with a non-zero code
+  And   /data/srf is read-only after the script completes
+  And   the update log contains a FAILED entry
+
+Scenario: update_srf.sh creates the log directory if absent
+  Given /data/workspace/logs/ does not exist
+  When  update_srf.sh is run
+  Then  it creates /data/workspace/logs/
+  And   writes the update log entry without error
+
+Scenario: update_srf/SKILL.md has valid frontmatter with name and description
+  Given skills/update_srf/SKILL.md
+  When  its YAML frontmatter is parsed
+  Then  it contains name equal to "update_srf"
+  And   it contains a non-empty description
+
+Scenario: update_srf/SKILL.md instructs the agent to run update_srf.sh via exec
+  Given skills/update_srf/SKILL.md
+  When  its Markdown body is read
+  Then  it references "scripts/update_srf.sh"
+  And   it contains error handling instructions that say to report stderr and stop
+
+Scenario: update_srf/SKILL.md includes the /data/srf edit prohibition
+  Given skills/update_srf/SKILL.md
+  When  its Markdown body is read
+  Then  it contains the statement that the skill must never edit files under /data/srf/
+```
+
+**TDD Notes:** The script-level tests (`update_srf.sh`) use a temporary git repo created with `git init` in `tmp_path` to simulate `/data/srf`. Verify file permissions with `os.access(path, os.W_OK)` before and after. The skill document tests are pure file-read assertions matching the pattern in `test_skills.py`.
+
+---
+
 ## Implementation Order
 
 ```
@@ -424,6 +498,7 @@ Story 1.1.1 (deploy OpenClaw + install Lobster — makes the service reachable)
     → Story 1.1.3 (validate_and_stage_forum.py — pre-Lobster staging gate)
       → Story 1.1.4 (Skills — MCP tool surface for Claude Desktop)
         → Story 1.1.5 (CI + deployment docs — wraps everything)
+          → Story 1.1.6 (update_srf skill — fast code updates without redeploy)
 ```
 
 All stories are sequential.
@@ -453,6 +528,12 @@ pytest tests/unit/test_skills.py -v
 # After 1.1.5
 python -c "import yaml; ci = yaml.safe_load(open('.github/workflows/ci.yml')); print('CI ok')"
 
+# After 1.1.6
+pytest tests/unit/test_update_srf.py -v
+# On the Railway service via exec:
+# bash /data/srf/scripts/update_srf.sh
+# → exits 0, /data/srf is read-only, log written to /data/workspace/logs/update_srf.log
+
 # Full epic suite
 pytest tests/unit -v --tb=short
 ruff check src/ tests/ scripts/ skills/
@@ -467,13 +548,16 @@ ruff check src/ tests/ scripts/ skills/
 - `openclaw.config.json`  _(OpenClaw configuration — alsoAllow lobster, exec allowlist)_
 - `scripts/srf_init.py`
 - `scripts/validate_and_stage_forum.py`
+- `scripts/update_srf.sh`
 - `skills/trigger_newsletter_forum/SKILL.md`
 - `skills/review_forum_debate_format/SKILL.md`
 - `skills/approve_editorial_review/SKILL.md`
+- `skills/update_srf/SKILL.md`
 - `tests/unit/test_runtime_deps.py`
 - `tests/unit/test_srf_init.py`
 - `tests/unit/test_validate_and_stage_forum.py`
 - `tests/unit/test_skills.py`
+- `tests/unit/test_update_srf.py`
 - `.github/workflows/ci.yml`
 
 **MODIFY:**

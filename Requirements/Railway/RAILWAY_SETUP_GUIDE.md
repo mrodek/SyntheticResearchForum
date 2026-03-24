@@ -129,6 +129,51 @@ Then `/health` should return 200.
 | `Gateway not ready` | Check logs for the reason — usually missing volume or bad env vars |
 | Build OOM | Upgrade Railway plan to 2GB+ memory (building OpenClaw from source is memory-intensive) |
 | `disconnected (1008): pairing required` | Normal — gateway is running but no device approved yet. Fix via `/setup` wizard |
+| `chown: invalid user: 'openclaw:openclaw'` | Start Command is missing or set to empty — Railway is falling back to the Dockerfile ENTRYPOINT which fails in Railway's container environment. Set Start Command to `openclaw start`. |
+| Health check failing on `/setup/healthz` | Railway dashboard health check path has been overridden. The correct path is `/health` (set in `railway.toml`). Check Railway service Settings → Deploy → Health Check Path. |
+| Gateway starts on `127.0.0.1:18789` only, health check fails | Wrong Start Command. `openclaw gateway` only starts the WebSocket gateway, not the HTTP server. Use `openclaw start`. |
+
+---
+
+## Restarting the Gateway (Model Config Changes)
+
+When you update OpenClaw's model configuration, the gateway process must be restarted for the change to take effect. A **Redeploy** rebuilds the image but may not restart the gateway process cleanly. Use **Restart** instead.
+
+### Correct restart procedure
+
+**Option 1 — Railway dashboard:**
+Service → three-dot menu → **Restart**
+
+**Option 2 — Railway CLI:**
+```bash
+railway service restart
+```
+
+### What NOT to do
+
+- **Do not** use `railway ssh openclaw gateway stop` — this stops a process Railway is not managing, and it will not restart automatically. If you do this accidentally, trigger a Railway Restart to recover.
+- **Do not** use `openclaw gateway start` or `openclaw gateway stop` via SSH — these commands target the systemd service manager, which is unavailable in Railway's container environment.
+- **Do not** change the Start Command to `openclaw gateway` — this starts only the WebSocket server, not the full HTTP stack. `/health` will fail.
+- **Do not** set Start Command to `openclaw gateway --foreground` — `--foreground` is not a valid flag.
+- **Do not** set Start Command to `node /openclaw/dist/entry.js` — this prints help and exits.
+- **Do not** clear the Start Command entirely — Railway falls back to the Dockerfile ENTRYPOINT, which crashes with `chown: invalid user: 'openclaw:openclaw'`.
+
+### Authoritative start command
+
+The correct Start Command is always:
+```
+openclaw start
+```
+
+This is also declared in `railway.toml` at the repo root:
+```toml
+[deploy]
+startCommand = "openclaw start"
+healthcheckPath = "/health"
+healthcheckTimeout = 500
+```
+
+If the Railway dashboard Start Command ever diverges from `railway.toml`, the dashboard value wins — keep them in sync.
 
 ---
 
@@ -150,6 +195,20 @@ Your browser will prompt for **HTTP Basic auth** — use any username, password 
 
 The template wrapper runs `/data/workspace/bootstrap.sh` on every startup if it exists. This is how SRF Python code gets installed onto the service.
 
+### Source tree protection — Option B (chosen approach)
+
+There are three options for protecting `/data/srf/` from accidental edits by OpenClaw:
+
+| Option | Mechanism | Protection | Fast update path |
+|--------|-----------|------------|-----------------|
+| **A — Instruction only** | Skill documents say "never edit `/data/srf/`" | Soft — relies on prompt compliance | Yes |
+| **B — Filesystem lock (chosen)** | `chmod -R a-w /data/srf` after every pull | Hard — OS enforces it | Yes — `update_srf` skill unlocks, pulls, relocks |
+| **C — No source tree** | Clone to temp, install to venv, delete clone | Hardest — no target to edit | No — requires full redeploy |
+
+**Option B** is the chosen approach. `/data/srf/` is locked read-only after every clone/pull. The `update_srf` skill (see Step 11) handles the unlock/pull/relock cycle for fast updates without a full redeploy. Both the filesystem lock and the skill document instructions are in force — defence in depth.
+
+### bootstrap.sh
+
 Use the OpenClaw exec tool (at `/openclaw`) to create the file:
 
 ```bash
@@ -157,16 +216,26 @@ cat > /data/workspace/bootstrap.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Clone or update SRF repo onto the persistent volume
+# Clone or update SRF repo onto the persistent volume.
+# /data/srf is kept read-only at runtime (Option B protection).
+# Unlock before fetch, lock back down after regardless of success/failure.
+lock_srf() { chmod -R a-w /data/srf 2>/dev/null || true; }
+
 if [ ! -d /data/srf ]; then
   git clone https://github.com/mrodek/SyntheticResearchForum /data/srf
 else
+  chmod -R u+w /data/srf
+  trap lock_srf EXIT
   cd /data/srf && git pull --ff-only
 fi
 
+# Lock /data/srf — hard guarantee, supplements skill document instructions.
+lock_srf
+trap - EXIT
+
 # Install SRF into a persistent venv (survives redeploys)
 python3 -m venv /data/venv 2>/dev/null || true
-/data/venv/bin/pip install -e /data/srf[anthropic,openai]
+/data/venv/bin/pip install -e /data/srf[anthropic,openai,promptledger]
 
 # Copy skills to workspace so OpenClaw discovers them on next startup
 mkdir -p /data/workspace/skills
@@ -175,8 +244,10 @@ EOF
 chmod +x /data/workspace/bootstrap.sh
 ```
 
+The `trap lock_srf EXIT` ensures `/data/srf/` is re-locked even if the pull or pip install fails mid-way.
+
 Then trigger a redeploy so the bootstrap script runs. After the redeploy:
-- `/data/srf/` — SRF codebase
+- `/data/srf/` — SRF codebase (read-only)
 - `/data/venv/` — Python venv with `srf`, `anthropic`, `openai` installed
 - `/data/workspace/skills/` — SRF OpenClaw skills
 
@@ -223,6 +294,42 @@ Test the pre-debate pipeline via the exec tool:
 | Debate | — | Not yet implemented (Epic 6) |
 
 All commands use `/data/venv/bin/python` and absolute paths to `/data/srf/scripts/`.
+
+---
+
+## Step 11 — Fast SRF Code Updates (update_srf skill)
+
+Full Railway redeployments take 5–10 minutes because OpenClaw rebuilds from source. SRF Python code changes don't need a redeploy — the `update_srf` skill pulls the latest code and reinstalls the package directly on the volume in ~15 seconds.
+
+The skill must handle the Option B unlock/lock cycle:
+
+```bash
+# unlock
+chmod -R u+w /data/srf
+
+# pull — if this fails, lock and report
+cd /data/srf && git pull --ff-only || { chmod -R a-w /data/srf; exit 1; }
+
+# reinstall
+/data/venv/bin/pip install -e /data/srf[anthropic,openai,promptledger] || { chmod -R a-w /data/srf; exit 1; }
+
+# relock always
+chmod -R a-w /data/srf
+
+# report new SHA
+git -C /data/srf rev-parse --short HEAD
+```
+
+**When to use `update_srf` vs full redeploy:**
+
+| Change type | Use |
+|-------------|-----|
+| SRF Python code (`src/`, `scripts/`, `skills/`) | `update_srf` skill |
+| New environment variables | Railway redeploy |
+| OpenClaw version update | Railway redeploy |
+| Volume or networking changes | Railway redeploy |
+
+> The `update_srf` skill spec lives at `skills/update_srf/SKILL.md` (to be created).
 
 ---
 

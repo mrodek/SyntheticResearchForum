@@ -136,10 +136,21 @@ SRF runs on Railway using a two-repo model:
 
 The OpenClaw template's wrapper runs `/data/workspace/bootstrap.sh` on every startup. This script:
 1. Clones (or pulls) the SRF repo to `/data/srf`
-2. Installs SRF Python dependencies into a persistent venv at `/data/venv`
+2. Installs SRF Python dependencies (including `promptledger`) into a persistent venv at `/data/venv`
 3. Copies OpenClaw skills to `/data/workspace/skills/`
+4. Locks `/data/srf` read-only (`chmod -R a-w`) — prevents the OpenClaw agent from editing production source files
 
 All state lives on the Railway volume at `/data` and survives redeploys.
+
+### Updating SRF code without a full redeploy
+
+Full Railway redeployments rebuild OpenClaw from source (5–10 min). For SRF Python code changes only, use the `update_srf` skill from OpenClaw Chat — it pulls the latest code and reinstalls the package in ~15 seconds:
+
+```
+/update_srf
+```
+
+Use a full redeploy only when environment variables, OpenClaw itself, or `bootstrap.sh` have changed.
 
 ### First-time setup
 
@@ -291,6 +302,7 @@ scripts/
   run_debate_bridge.py       — Lobster step: trigger OpenClaw debate, poll sentinel, validate
   validate_transcript.py     — validate JSONL transcript; returns TranscriptSummary
   validate_prompts.py        — CI: assert no unregistered prompt changes
+  update_srf.sh              — unlock /data/srf, git pull, pip install, relock
 
 workflows/
   srf_forum.lobster  — Lobster workflow definition (15-phase lifecycle)
@@ -300,6 +312,7 @@ skills/
   review_forum_debate_format/  — skill: editorial approval gate before debate
   approve_editorial_review/    — skill: editorial review gate after synthesis
   run_forum_debate/            — skill: OpenClaw-native multi-agent debate engine
+  update_srf/                  — skill: pull latest SRF code + reinstall (no redeploy needed)
     SKILL.md       — orchestration spec (phases, turn protocol, limits, error handling)
     MODERATOR.md   — Moderator role document
     PAPER_AGENT.md — Paper Agent role document
