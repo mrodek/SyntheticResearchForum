@@ -4,6 +4,33 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-24] - Story 1.1.7: entrypoint-owned git clone, simplified bootstrap
+
+### Summary
+- Epic 1.1, Story 1.1.7 — resolves open design question from Story 1.1.6
+- MODIFY: `mrodek/clawdbot-railway-template` `entrypoint.sh` — add SRF-specific git clone/pull block (root context, before privilege drop) with project-specific commentary
+- MODIFY: `Requirements/Railway/RAILWAY_SETUP_GUIDE.md` — Step 8 updated with entrypoint.sh SRF block and simplified bootstrap.sh; Step 11 updated to supersede update_srf skill
+- MODIFY: `README.md` — deployment section updated with entrypoint/bootstrap split and source protection explanation
+- MODIFY: `Requirements/srf_epic_01_1_runtime_infrastructure.md` — Story 1.1.7 added, implementation order updated
+- Story 1.1.6 (`update_srf` skill) superseded — Railway Restart replaces it
+
+### Decisions
+- Git clone/pull moves to `entrypoint.sh` (root context). `/data/srf` stays permanently root-owned. `openclaw` process can read but never write to source files.
+- `bootstrap.sh` simplified to 4 lines: venv create, pip install (non-editable), skills copy. No git, no chmod.
+- Non-editable pip install (`pip install /data/srf[...]` without `-e`) — writes nothing back to `/data/srf`, only into `/data/venv/lib/`.
+- Railway Restart (~30s) replaces `update_srf` skill for code updates. Restart re-runs entrypoint as root → pulls latest → bootstrap reinstalls.
+- `entrypoint.sh` must have prominent project-specific commentary marking the git clone section so template reusers know what to change.
+
+### Issues & Resolution
+- Story 1.1.6 `update_srf.sh` could not work: it runs as `openclaw` and cannot `chmod u+w` or `git pull` into root-owned `/data/srf`. Superseded rather than fixed — the root design is better.
+
+### Next Steps
+- [ ] Apply entrypoint.sh SRF block to `mrodek/clawdbot-railway-template` and redeploy
+- [ ] Create simplified bootstrap.sh on the volume via OpenClaw exec tool
+- [ ] Verify Railway Restart picks up new SRF code end-to-end
+
+---
+
 ## [2026-03-24] - Railway: entrypoint privilege model and Dockerfile useradd fix
 
 ### Summary

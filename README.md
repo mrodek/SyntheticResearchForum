@@ -134,23 +134,25 @@ SRF runs on Railway using a two-repo model:
 
 ### How it works
 
-The OpenClaw template's wrapper runs `/data/workspace/bootstrap.sh` on every startup. This script:
-1. Clones (or pulls) the SRF repo to `/data/srf`
-2. Installs SRF Python dependencies (including `promptledger`) into a persistent venv at `/data/venv`
-3. Copies OpenClaw skills to `/data/workspace/skills/`
-4. Locks `/data/srf` read-only (`chmod -R a-w`) — prevents the OpenClaw agent from editing production source files
+On every container start, `entrypoint.sh` runs as root and:
+1. Clones (or pulls) the SRF repo into `/data/srf` — root-owned, OpenClaw cannot write to it
+2. Drops privileges to the `openclaw` user
 
-All state lives on the Railway volume at `/data` and survives redeploys.
+Then `bootstrap.sh` runs as `openclaw` and:
+1. Installs SRF Python dependencies into a persistent venv at `/data/venv` (non-editable install — writes nothing to `/data/srf`)
+2. Copies OpenClaw skills to `/data/workspace/skills/`
 
-### Updating SRF code without a full redeploy
+All state lives on the Railway volume at `/data` and survives restarts.
 
-Full Railway redeployments rebuild OpenClaw from source (5–10 min). For SRF Python code changes only, use the `update_srf` skill from OpenClaw Chat — it pulls the latest code and reinstalls the package in ~15 seconds:
+### Source protection
 
-```
-/update_srf
-```
+`/data/srf` is permanently root-owned. The `openclaw` process (which runs all skills and scripts) cannot write to it — enforced by the OS. Skill documents also contain explicit instructions prohibiting edits to `/data/srf/` as defence in depth.
 
-Use a full redeploy only when environment variables, OpenClaw itself, or `bootstrap.sh` have changed.
+### Updating SRF code
+
+Push to `main`, then trigger a Railway **Restart** (not redeploy). The restart re-runs `entrypoint.sh` as root, pulls the latest code, and reinstalls the package. ~30 seconds total.
+
+Use a full **Redeploy** only when environment variables, OpenClaw itself, `entrypoint.sh`, or `bootstrap.sh` have changed.
 
 ### First-time setup
 

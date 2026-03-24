@@ -28,7 +28,8 @@
 | Story | Title | Status | Notes |
 |---|---|---|---|
 | 1.1.5 | CI Pipeline (GitHub Actions) | Not Started | `.github/workflows/ci.yml` never created — story was incorrectly marked Complete |
-| 1.1.6 | update_srf Skill and Script | GREEN | `scripts/update_srf.sh` + `skills/update_srf/SKILL.md` — 5 tests passing, 6 bash tests run on Linux CI |
+| 1.1.6 | update_srf Skill and Script | Superseded | Superseded by 1.1.7 — `update_srf.sh` cannot run as `openclaw` against root-owned `/data/srf`. Retained in repo for reference. |
+| 1.1.7 | Entrypoint-owned git clone + simplified bootstrap | In Progress | `entrypoint.sh` SRF block + simplified `bootstrap.sh` — pending apply to template fork |
 | 6B.1 | Debate Context Document | GREEN | `scripts/prepare_debate_context.py` — 8 tests passing |
 | 6B.2 | Forum Debate Skill Documents | GREEN | SKILL.md + MODERATOR.md + PAPER_AGENT.md + CHALLENGER.md + GUARDRAIL.md — 12 tests passing |
 | 6B.3 | Transcript Validator | GREEN | `scripts/validate_transcript.py` — 7 tests passing |

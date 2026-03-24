@@ -244,9 +244,39 @@ The `chmod -R a-w` approach discussed earlier is **redundant** given Level 1. Th
 
 **Implication for bootstrap.sh:** since bootstrap.sh runs as `openclaw` (after privilege drop), it cannot `git clone` into the root-owned `/data/srf`. The entrypoint creates `/data/srf` as root. Bootstrap must clone to a different path or the entrypoint must chown `/data/srf` to `openclaw` first.
 
-> **TODO:** Resolve the bootstrap/update_srf approach in light of the root-ownership model. Options: (a) have the entrypoint chown `/data/srf` to `openclaw` — bootstrap can write but root-ownership protection is lost; (b) run bootstrap as a separate root-privileged init step before privilege drop; (c) accept that `/data/srf` population must happen via a root-context step (e.g. a Railway init script or a separate service). This is an open design question.
+> **RESOLVED (Story 1.1.7):** Git clone/pull moves into `entrypoint.sh` (runs as root, before privilege drop). `/data/srf` stays root-owned permanently. `bootstrap.sh` is simplified to pip install + skills copy only — no git operations, no chmod. A Railway **Restart** replaces the `update_srf` skill for code updates (~30 seconds). See updated sections below.
 
-### bootstrap.sh
+### entrypoint.sh — SRF-specific section (Story 1.1.7)
+
+The git clone/pull belongs in `entrypoint.sh` (runs as root), not in `bootstrap.sh`. Add the following SRF-specific block to `entrypoint.sh` in `mrodek/clawdbot-railway-template`, **before** the `chown` and `runuser` lines:
+
+```bash
+# ============================================================
+# PROJECT-SPECIFIC: SRF git clone/pull
+# If you reuse this template for a different project, update
+# the REPO_URL and BRANCH below.
+# ============================================================
+REPO_URL="https://github.com/mrodek/SyntheticResearchForum"
+BRANCH="main"
+
+if [ ! -d /data/srf/.git ]; then
+  echo "[entrypoint] Cloning SRF repo..."
+  git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" /data/srf
+else
+  echo "[entrypoint] Pulling latest SRF code..."
+  git -C /data/srf pull --ff-only || echo "[entrypoint] WARNING: git pull failed, running with existing code"
+fi
+# /data/srf stays root-owned — openclaw process cannot write to it
+# ============================================================
+```
+
+`/data/srf` is never chowned to `openclaw`. The running process has read access but cannot modify source files.
+
+### bootstrap.sh — simplified (Story 1.1.7)
+
+`bootstrap.sh` no longer handles git. It only installs the Python package and copies skills.
+
+> **Note:** The previous version of bootstrap.sh included git clone/pull with a chmod lock/unlock cycle. That approach was superseded because bootstrap.sh runs as `openclaw` and cannot write to root-owned `/data/srf`. The git operations now live in `entrypoint.sh` (root context).
 
 Use the OpenClaw exec tool (at `/openclaw`) to create the file:
 
@@ -255,26 +285,13 @@ cat > /data/workspace/bootstrap.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Clone or update SRF repo onto the persistent volume.
-# /data/srf is kept read-only at runtime (Option B protection).
-# Unlock before fetch, lock back down after regardless of success/failure.
-lock_srf() { chmod -R a-w /data/srf 2>/dev/null || true; }
+# /data/srf is populated by entrypoint.sh (runs as root before privilege drop).
+# This script runs as openclaw — it can read /data/srf but not write to it.
+# Do not add git operations here.
 
-if [ ! -d /data/srf ]; then
-  git clone https://github.com/mrodek/SyntheticResearchForum /data/srf
-else
-  chmod -R u+w /data/srf
-  trap lock_srf EXIT
-  cd /data/srf && git pull --ff-only
-fi
-
-# Lock /data/srf — hard guarantee, supplements skill document instructions.
-lock_srf
-trap - EXIT
-
-# Install SRF into a persistent venv (survives redeploys)
+# Install SRF into a persistent venv (survives restarts)
 python3 -m venv /data/venv 2>/dev/null || true
-/data/venv/bin/pip install -e /data/srf[anthropic,openai,promptledger]
+/data/venv/bin/pip install /data/srf[anthropic,openai,promptledger]
 
 # Copy skills to workspace so OpenClaw discovers them on next startup
 mkdir -p /data/workspace/skills
@@ -283,11 +300,11 @@ EOF
 chmod +x /data/workspace/bootstrap.sh
 ```
 
-The `trap lock_srf EXIT` ensures `/data/srf/` is re-locked even if the pull or pip install fails mid-way.
+Note: pip install is **non-editable** (no `-e` flag) — pip writes nothing back to `/data/srf`, only into `/data/venv/lib/`.
 
-Then trigger a redeploy so the bootstrap script runs. After the redeploy:
-- `/data/srf/` — SRF codebase (read-only)
-- `/data/venv/` — Python venv with `srf`, `anthropic`, `openai` installed
+After the next restart:
+- `/data/srf/` — SRF codebase, root-owned (populated by entrypoint)
+- `/data/venv/` — Python venv with `srf`, `anthropic`, `openai`, `promptledger` installed
 - `/data/workspace/skills/` — SRF OpenClaw skills
 
 ---
@@ -336,39 +353,35 @@ All commands use `/data/venv/bin/python` and absolute paths to `/data/srf/script
 
 ---
 
-## Step 11 — Fast SRF Code Updates (update_srf skill)
+## Step 11 — Updating SRF Code (Story 1.1.7 supersedes update_srf skill)
 
-Full Railway redeployments take 5–10 minutes because OpenClaw rebuilds from source. SRF Python code changes don't need a redeploy — the `update_srf` skill pulls the latest code and reinstalls the package directly on the volume in ~15 seconds.
+> **Note:** The `update_srf` skill (Story 1.1.6) was designed to pull latest SRF code without a full redeploy, using a chmod unlock/lock cycle. It was superseded by Story 1.1.7 because: (a) `update_srf.sh` runs as `openclaw` and cannot write to root-owned `/data/srf`; (b) a Railway Restart achieves the same result in ~30 seconds by re-running `entrypoint.sh` as root. The skill and script remain in the repo for reference but are not used.
 
-The skill must handle the Option B unlock/lock cycle:
+### Fast SRF code updates — Railway Restart
 
-```bash
-# unlock
-chmod -R u+w /data/srf
+Push to `main`, then trigger a Railway **Restart** (not redeploy):
 
-# pull — if this fails, lock and report
-cd /data/srf && git pull --ff-only || { chmod -R a-w /data/srf; exit 1; }
-
-# reinstall
-/data/venv/bin/pip install -e /data/srf[anthropic,openai,promptledger] || { chmod -R a-w /data/srf; exit 1; }
-
-# relock always
-chmod -R a-w /data/srf
-
-# report new SHA
-git -C /data/srf rev-parse --short HEAD
+```
+Railway dashboard → service → three-dot menu → Restart
 ```
 
-**When to use `update_srf` vs full redeploy:**
+or:
+
+```bash
+railway service restart
+```
+
+The restart re-runs `entrypoint.sh` as root → pulls latest code into `/data/srf` → `bootstrap.sh` reinstalls the package into `/data/venv`. ~30 seconds total.
+
+**When to Restart vs full Redeploy:**
 
 | Change type | Use |
 |-------------|-----|
-| SRF Python code (`src/`, `scripts/`, `skills/`) | `update_srf` skill |
-| New environment variables | Railway redeploy |
-| OpenClaw version update | Railway redeploy |
-| Volume or networking changes | Railway redeploy |
-
-> The `update_srf` skill spec lives at `skills/update_srf/SKILL.md` (to be created).
+| SRF Python code (`src/`, `scripts/`, `skills/`) | Railway Restart |
+| New environment variables | Railway Redeploy |
+| OpenClaw version update | Railway Redeploy |
+| `entrypoint.sh` or `bootstrap.sh` changes | Railway Redeploy |
+| Volume or networking changes | Railway Redeploy |
 
 ---
 

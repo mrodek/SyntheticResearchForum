@@ -490,6 +490,75 @@ Scenario: update_srf/SKILL.md includes the /data/srf edit prohibition
 
 ---
 
+### Story 1.1.7 — Entrypoint-Owned Git Clone and Simplified Bootstrap
+
+**As a** developer,
+**I would like** the `entrypoint.sh` in the OpenClaw template to own the SRF git clone/pull as root, and `bootstrap.sh` to be simplified to just pip install and skills copy,
+**so that** `/data/srf` is permanently root-owned (OpenClaw can never write to it), the bootstrap is simple and reliable, and a Railway restart is sufficient to pick up new SRF code.
+
+**Context:**
+
+The previous bootstrap design had `bootstrap.sh` doing `git clone/pull` into `/data/srf`. This was impossible because bootstrap.sh runs as `openclaw` (after privilege drop) and `/data/srf` is root-owned. The fix is to move the git operations into `entrypoint.sh`, which runs as root before privilege drop.
+
+This also supersedes Story 1.1.6 (`update_srf` skill). Fast code updates no longer require a skill — a Railway **Restart** (not redeploy) runs the entrypoint again as root, pulls the latest code, and the updated package is available within ~30 seconds.
+
+**`entrypoint.sh` must include prominent project-specific commentary** so that anyone reusing the OpenClaw template for a different project knows exactly where to change the git repo URL and branch.
+
+**Files:**
+- MODIFY: `mrodek/clawdbot-railway-template` — `entrypoint.sh`
+- MODIFY: `Requirements/Railway/RAILWAY_SETUP_GUIDE.md`
+- MODIFY: `README.md`
+
+Note: `bootstrap.sh` lives on the Railway volume, not in this repo. Its new content is documented in the setup guide.
+
+**Acceptance Criteria:**
+
+```gherkin
+Scenario: entrypoint.sh clones /data/srf on first startup
+  Given /data/srf does not exist on the volume
+  When  the container starts
+  Then  entrypoint.sh clones the SRF repo into /data/srf as root
+  And   /data/srf is owned by root
+  And   the openclaw process cannot write to /data/srf
+
+Scenario: entrypoint.sh pulls latest code on subsequent startups
+  Given /data/srf already exists on the volume
+  When  the container starts (Railway restart)
+  Then  entrypoint.sh runs git pull --ff-only in /data/srf as root
+  And   /data/srf reflects the latest commit on main
+
+Scenario: entrypoint.sh has project-specific commentary identifying the git repo
+  Given entrypoint.sh in mrodek/clawdbot-railway-template
+  When  it is read
+  Then  it contains a comment marking the SRF-specific git clone section
+  And   the comment instructs future users to update the repo URL for different projects
+
+Scenario: bootstrap.sh contains no git operations
+  Given /data/workspace/bootstrap.sh on the Railway volume
+  When  it is read
+  Then  it contains no git clone or git pull commands
+  And   it contains a pip install command using /data/srf[anthropic,openai,promptledger]
+  And   the pip install is non-editable (no -e flag)
+  And   it copies skills from /data/srf/skills to /data/workspace/skills
+
+Scenario: /data/srf is root-owned after entrypoint runs
+  Given the container has started and entrypoint.sh has run
+  When  ls -la /data/srf is run as openclaw
+  Then  the directory owner is root
+  And   openclaw cannot create or modify files in /data/srf
+
+Scenario: Railway restart picks up new SRF code within 30 seconds
+  Given a new commit has been pushed to main
+  When  a Railway Restart is triggered (not redeploy)
+  Then  entrypoint.sh pulls the new commit
+  And   bootstrap.sh reinstalls the updated package into /data/venv
+  And   the service is healthy within 30 seconds
+```
+
+**TDD Notes:** The git and filesystem scenarios are deployment verification checks run manually after deploy — not automated unit tests. The bootstrap.sh content test is a file-read assertion. The entrypoint commentary test is a string-contains check on the file content.
+
+---
+
 ## Implementation Order
 
 ```
@@ -498,10 +567,11 @@ Story 1.1.1 (deploy OpenClaw + install Lobster — makes the service reachable)
     → Story 1.1.3 (validate_and_stage_forum.py — pre-Lobster staging gate)
       → Story 1.1.4 (Skills — MCP tool surface for Claude Desktop)
         → Story 1.1.5 (CI + deployment docs — wraps everything)
-          → Story 1.1.6 (update_srf skill — fast code updates without redeploy)
+          → Story 1.1.6 (update_srf skill — superseded by 1.1.7)
+            → Story 1.1.7 (entrypoint-owned git clone + simplified bootstrap)
 ```
 
-All stories are sequential.
+All stories are sequential. Story 1.1.6 is superseded by 1.1.7 — the update_srf skill and script remain in the repo but are retired from active use. A Railway Restart replaces the skill for code updates.
 
 ---
 
@@ -563,3 +633,6 @@ ruff check src/ tests/ scripts/ skills/
 **MODIFY:**
 - `.env.example`  _(add all missing vars from Epics 1–6)_
 - `Requirements/progress_summary.md`
+- `mrodek/clawdbot-railway-template` — `entrypoint.sh`  _(Story 1.1.7 — git clone/pull as root, project-specific commentary)_
+- `Requirements/Railway/RAILWAY_SETUP_GUIDE.md`  _(Story 1.1.7 — simplified bootstrap, entrypoint design)_
+- `README.md`  _(Story 1.1.7 — update deployment section)_
