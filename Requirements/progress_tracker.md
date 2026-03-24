@@ -4,6 +4,30 @@ Newest entries first. Each entry references the epic/story, files changed, and d
 
 ---
 
+## [2026-03-24] - Railway: entrypoint privilege model and Dockerfile useradd fix
+
+### Summary
+- MODIFY: `Requirements/Railway/RAILWAY_SETUP_GUIDE.md` — documented container startup sequence, privilege drop model, root-ownership of `/data/srf`, and open design question for bootstrap
+- No code changes — documentation and architectural understanding only
+
+### Decisions
+- `/data/srf` is intentionally left root-owned by `entrypoint.sh`. The `openclaw` process (which runs all skills and scripts) cannot write to it. This is the **primary** source protection — enforced by the OS, not by prompt instructions.
+- Skill document instructions ("never edit `/data/srf/`") are Level 2 / defence in depth. The filesystem would block writes anyway.
+- `chmod -R a-w` in bootstrap.sh is redundant given root-ownership. Removed from bootstrap design.
+- `update_srf.sh` as designed cannot work — it runs as `openclaw` and cannot `chmod u+w` or `git pull` into a root-owned directory.
+
+### Issues & Resolution
+- Template PR #2 (`mrodek/clawdbot-railway-template`, merged 2026-03-22) added `entrypoint.sh` to fix volume ownership but omitted `RUN useradd -r -s /bin/false -m -d /home/openclaw openclaw` from the Dockerfile runtime stage. This causes `chown: invalid user: 'openclaw:openclaw'` and a crash loop on every deploy.
+- Fix: add the `useradd` line to the runtime stage of `Dockerfile` in the template fork. No custom Start Command needed once fixed.
+- Root cause of original restart failure (2026-03-24 session): the service was working before PR #2 landed. The PR introduced the chown step without creating the user.
+
+### Next Steps
+- [ ] Add `RUN useradd -r -s /bin/false -m -d /home/openclaw openclaw` to `mrodek/clawdbot-railway-template` Dockerfile runtime stage
+- [ ] Resolve open design question: how does bootstrap.sh populate `/data/srf` given that it runs as `openclaw` and `/data/srf` is root-owned?
+- [ ] Revisit `update_srf.sh` — current implementation cannot work under the root-ownership model
+
+---
+
 ## [2026-03-24] - Story 1.1.6: update_srf skill and script
 
 ### Summary

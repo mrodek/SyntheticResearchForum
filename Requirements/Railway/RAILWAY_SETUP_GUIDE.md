@@ -11,6 +11,43 @@ SRF uses a two-repo deployment model:
 
 The template's runtime image already includes Python + venv support. SRF Python packages are installed into a persistent venv at `/data/venv` via `/data/workspace/bootstrap.sh`, which the template wrapper runs automatically on every startup.
 
+### Container startup sequence and privilege model
+
+The template's `entrypoint.sh` runs as **root** on every container start:
+
+```bash
+mkdir -p /data/workspace /data/.openclaw /data/srf
+chown -R openclaw:openclaw /data/workspace /data/.openclaw
+# /data/srf stays root-owned — openclaw gets read-only access
+exec runuser -u openclaw -- node src/server.js
+```
+
+Key points:
+- `/data/workspace` and `/data/.openclaw` are chowned to `openclaw` — the running process owns them and can write freely
+- `/data/srf` is **intentionally left root-owned** — the `openclaw` process cannot write to it. This is the primary source protection preventing OpenClaw from editing production code
+- After chown, privileges drop to `openclaw` via `runuser`. All application code runs as `openclaw`
+- The HTTP server is `node src/server.js` (the template wrapper), not the `openclaw` binary directly
+
+**Implication for bootstrap.sh and update_srf.sh:** both scripts run as `openclaw` (after privilege drop). Since `/data/srf` is root-owned, neither script can `git clone` or `git pull` into it directly. See the bootstrap and update sections below for how this is handled.
+
+### Known issue — missing `useradd` in Dockerfile (template PR #2, merged 2026-03-22)
+
+PR #2 in `mrodek/clawdbot-railway-template` added `entrypoint.sh` to fix volume ownership at runtime. However, the `openclaw` user was not created in the Dockerfile's **runtime stage** (only the build stage). This causes:
+
+```
+chown: invalid user: 'openclaw:openclaw'
+```
+
+on every deploy, crashing the container in a restart loop.
+
+**Fix:** add to the runtime stage of `Dockerfile`, after the `apt-get` block:
+
+```dockerfile
+RUN useradd -r -s /bin/false -m -d /home/openclaw openclaw
+```
+
+Without this line the service will not start. No custom Start Command is needed once this is in place — the entrypoint handles everything.
+
 ---
 
 ## Prerequisites
@@ -195,17 +232,19 @@ Your browser will prompt for **HTTP Basic auth** — use any username, password 
 
 The template wrapper runs `/data/workspace/bootstrap.sh` on every startup if it exists. This is how SRF Python code gets installed onto the service.
 
-### Source tree protection — Option B (chosen approach)
+### Source tree protection
 
-There are three options for protecting `/data/srf/` from accidental edits by OpenClaw:
+`/data/srf` is protected from OpenClaw writes at two levels:
 
-| Option | Mechanism | Protection | Fast update path |
-|--------|-----------|------------|-----------------|
-| **A — Instruction only** | Skill documents say "never edit `/data/srf/`" | Soft — relies on prompt compliance | Yes |
-| **B — Filesystem lock (chosen)** | `chmod -R a-w /data/srf` after every pull | Hard — OS enforces it | Yes — `update_srf` skill unlocks, pulls, relocks |
-| **C — No source tree** | Clone to temp, install to venv, delete clone | Hardest — no target to edit | No — requires full redeploy |
+**Level 1 — entrypoint (primary, hardware):** The container's `entrypoint.sh` intentionally leaves `/data/srf` root-owned. After privilege drop, the `openclaw` process runs as the `openclaw` user and cannot write to root-owned directories. This is enforced by the OS regardless of what the agent is instructed to do.
 
-**Option B** is the chosen approach. `/data/srf/` is locked read-only after every clone/pull. The `update_srf` skill (see Step 11) handles the unlock/pull/relock cycle for fast updates without a full redeploy. Both the filesystem lock and the skill document instructions are in force — defence in depth.
+**Level 2 — skill documents (secondary, prompt):** Every skill document contains an explicit instruction: "This skill must never edit any file under `/data/srf/`." This is defence in depth — it prevents well-behaved agents from trying, even though the filesystem would stop them anyway.
+
+The `chmod -R a-w` approach discussed earlier is **redundant** given Level 1. The entrypoint's root-ownership already provides the hard guarantee. bootstrap.sh does not need to lock/unlock.
+
+**Implication for bootstrap.sh:** since bootstrap.sh runs as `openclaw` (after privilege drop), it cannot `git clone` into the root-owned `/data/srf`. The entrypoint creates `/data/srf` as root. Bootstrap must clone to a different path or the entrypoint must chown `/data/srf` to `openclaw` first.
+
+> **TODO:** Resolve the bootstrap/update_srf approach in light of the root-ownership model. Options: (a) have the entrypoint chown `/data/srf` to `openclaw` — bootstrap can write but root-ownership protection is lost; (b) run bootstrap as a separate root-privileged init step before privilege drop; (c) accept that `/data/srf` population must happen via a root-context step (e.g. a Railway init script or a separate service). This is an open design question.
 
 ### bootstrap.sh
 
